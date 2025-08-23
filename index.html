@@ -2,153 +2,212 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>지판 암기 트레이너</title>
+<meta name="viewport" content="width=device-width, user-scalable=no">
+<title>지판 암기 트레이닝</title>
 <style>
   body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background: #111;
+    color: white;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 { margin-bottom: 10px; }
+  #notes {
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    font-family: sans-serif;
+    gap: 15px;
+    font-size: 28px;
+    margin: 20px 0;
   }
-  .container {
-    border: 3px solid black;
-    width: 300px;
-    padding: 5px;
-  }
-  .top-row {
-    display: flex;
-    justify-content: space-between;
-  }
-  .note-block {
-    flex: 1;
-    border: 2px solid black;
-    text-align: center;
-    padding: 5px;
-    margin: 2px;
+  .note {
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+    background: black;
+    color: white;
     font-weight: bold;
-    font-size: 18px;
-  }
-  .middle-row {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 5px;
-  }
-  .middle-row button {
-    flex: 1;
-    border: 2px solid black;
-    background: white;
-    margin: 2px;
-    font-size: 16px;
-  }
-  #noteDisplay, #timeDisplay {
-    font-weight: bold;
-  }
-  .big-button {
-    display: block;
-    width: 100%;
-    border: 2px solid black;
-    background: white;
-    margin: 5px 0;
-    font-size: 18px;
-    padding: 8px;
-  }
-  .option-button {
-    display: block;
-    width: 100%;
-    border: 2px solid black;
-    background: white;
-    margin: 3px 0;
-    padding: 6px;
-    font-size: 16px;
+    transition: 0.3s;
   }
   .active {
-    background: lightgreen;
+    background: white;
+    color: black;
   }
+  .correct {
+    background: #0f0;
+    color: black;
+  }
+  .wrong {
+    background: red !important;
+  }
+  button {
+    margin: 10px;
+    padding: 10px 20px;
+    font-size: 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #333;
+    color: white;
+  }
+  button:hover { background: #555; }
+  #options {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    max-width: 400px;
+    margin-left: auto; margin-right: auto;
+    text-align: left;
+  }
+  #timer { margin-top: 20px; font-size: 20px; }
 </style>
 </head>
 <body>
-<div class="container">
-  <div class="top-row">
-    <div class="note-block">E</div>
-    <div class="note-block">A</div>
-    <div class="note-block">D</div>
-    <div class="note-block">G</div>
-    <div class="note-block">B</div>
-    <div class="note-block">E</div>
+  <h1>지판 암기 트레이닝</h1>
+  <div id="notes"></div>
+  <button id="rollBtn">Roll</button>
+  <div id="options">
+    <label><input type="checkbox" id="unique"> 중복 없음</label>
+    <label><input type="checkbox" id="accidentals"> 플랫/샵 포함</label>
+    <label><input type="checkbox" id="showInput"> 수음 음 표시</label>
+    <label><input type="checkbox" id="autoNext"> 자동 진행</label>
   </div>
-
-  <div class="middle-row">
-    <button id="noteToggle">음표시</button>
-    <button id="timeToggle">시간표시</button>
-  </div>
-
-  <button class="big-button" id="rollBtn">roll</button>
-
-  <button class="option-button" id="dupBtn">중복금지</button>
-  <button class="option-button" id="accBtn">플랫 샵표시</button>
-  <button class="option-button" id="autoBtn">오토롤</button>
-</div>
+  <div id="inputNote">현재 입력: -</div>
+  <div id="timer">경과 시간: 0.0초</div>
 
 <script>
-  let noteMode = false;
-  let timeMode = true;
-  let timerId = null;
-  let startTime = null;
+const baseNotes = ["C","D","E","F","G","A","B"];
+const accidentals = ["C#","Db","D#","Eb","F#","Gb","G#","Ab","A#","Bb"];
+let currentNotes = ["E","A","D","G","B","E"];
+let currentIndex = 0;
+let startTime = 0;
+let timerInterval;
 
-  const noteBtn = document.getElementById('noteToggle');
-  const timeBtn = document.getElementById('timeToggle');
-  const rollBtn = document.getElementById('rollBtn');
+const notesDiv = document.getElementById("notes");
+const rollBtn = document.getElementById("rollBtn");
+const timerDiv = document.getElementById("timer");
+const inputNoteDiv = document.getElementById("inputNote");
 
-  const dupBtn = document.getElementById('dupBtn');
-  const accBtn = document.getElementById('accBtn');
-  const autoBtn = document.getElementById('autoBtn');
-
-  // 음표시 버튼
-  noteBtn.addEventListener('click', () => {
-    noteMode = !noteMode;
-    noteBtn.classList.toggle('active', noteMode);
-    if (noteMode) {
-      noteBtn.textContent = "음표: C"; // 예시 표시
-    } else {
-      noteBtn.textContent = "음표시";
-    }
+function renderNotes() {
+  notesDiv.innerHTML = "";
+  currentNotes.forEach((n,i)=>{
+    const el = document.createElement("div");
+    el.className = "note";
+    el.innerText = n;
+    if(i === currentIndex) el.classList.add("active");
+    notesDiv.appendChild(el);
   });
+}
 
-  // 시간표시 버튼
-  timeBtn.addEventListener('click', () => {
-    timeMode = !timeMode;
-    timeBtn.classList.toggle('active', timeMode);
-    if (!timeMode) {
-      timeBtn.textContent = "시간정지";
-      clearInterval(timerId);
-    } else {
-      timeBtn.textContent = "시간표시";
-      startTimer();
-    }
-  });
-
-  function startTimer() {
-    startTime = Date.now();
-    clearInterval(timerId);
-    timerId = setInterval(() => {
-      if (timeMode) {
-        const elapsed = ((Date.now() - startTime)/1000).toFixed(1);
-        timeBtn.textContent = elapsed + "초";
-      }
-    }, 100);
+function rollNotes() {
+  let pool = [...baseNotes];
+  if(document.getElementById("accidentals").checked) pool = pool.concat(accidentals);
+  
+  let notes = [];
+  for(let i=0;i<6;i++){
+    let pick;
+    do { pick = pool[Math.floor(Math.random()*pool.length)]; }
+    while(document.getElementById("unique").checked && notes.includes(pick));
+    notes.push(pick);
   }
+  currentNotes = notes;
+  currentIndex = 0;
+  renderNotes();
+  startTimer();
+}
 
-  rollBtn.addEventListener('click', () => {
-    startTimer();
+function startTimer() {
+  clearInterval(timerInterval);
+  startTime = Date.now();
+  timerInterval = setInterval(()=>{
+    let elapsed = (Date.now()-startTime)/1000;
+    timerDiv.innerText = `경과 시간: ${elapsed.toFixed(1)}초`;
+  },100);
+}
+
+function markCorrect() {
+  const els = notesDiv.querySelectorAll(".note");
+  els[currentIndex].classList.remove("active");
+  els[currentIndex].classList.add("correct");
+  currentIndex++;
+  if(currentIndex < currentNotes.length) {
+    els[currentIndex].classList.add("active");
+  } else {
+    clearInterval(timerInterval);
+    if(document.getElementById("autoNext").checked) rollNotes();
+  }
+}
+
+function markWrong() {
+  const els = notesDiv.querySelectorAll(".note");
+  els[currentIndex].classList.add("wrong");
+  setTimeout(()=>{
+    els[currentIndex].classList.remove("wrong");
+  },300);
+}
+
+rollBtn.addEventListener("click", rollNotes);
+renderNotes();
+
+// 마이크 수음
+let audioCtx, analyser, source, dataArray;
+navigator.mediaDevices.getUserMedia({audio:true})
+  .then(stream=>{
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    source = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    source.connect(analyser);
+    dataArray = new Float32Array(analyser.fftSize);
+    detectPitch();
   });
 
-  // 옵션 버튼 토글
-  [dupBtn, accBtn, autoBtn].forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.classList.toggle('active');
-    });
-  });
+function detectPitch(){
+  analyser.getFloatTimeDomainData(dataArray);
+  let pitch = autoCorrelate(dataArray,audioCtx.sampleRate);
+  if(pitch != -1){
+    let note = freqToNote(pitch);
+    if(document.getElementById("showInput").checked){
+      inputNoteDiv.innerText = "현재 입력: "+note;
+    } else {
+      inputNoteDiv.innerText = "현재 입력: -";
+    }
+    if(note === currentNotes[currentIndex]) {
+      markCorrect();
+    } else {
+      if(note) markWrong();
+    }
+  }
+  requestAnimationFrame(detectPitch);
+}
+
+// 피치 검출
+function autoCorrelate(buf,sampleRate){
+  let SIZE = buf.length;
+  let rms=0;
+  for(let i=0;i<SIZE;i++) rms+=buf[i]*buf[i];
+  rms = Math.sqrt(rms/SIZE);
+  if(rms<0.01) return -1;
+  let r1=0,r2=SIZE-1,thres=0.2;
+  for(let i=0;i<SIZE/2;i++) if(Math.abs(buf[i])<thres){r1=i;break;}
+  for(let i=1;i<SIZE/2;i++) if(Math.abs(buf[SIZE-i])<thres){r2=SIZE-i;break;}
+  buf = buf.slice(r1,r2); SIZE = buf.length;
+  let c=new Array(SIZE).fill(0);
+  for(let i=0;i<SIZE;i++)for(let j=0;j<SIZE-i;j++)c[i]+=buf[j]*buf[j+i];
+  let d=0;while(c[d]>c[d+1])d++;
+  let maxval=-1,maxpos=-1;
+  for(let i=d;i<SIZE;i++){if(c[i]>maxval){maxval=c[i];maxpos=i;}}
+  let T=maxpos;
+  return sampleRate/T;
+}
+function freqToNote(freq){
+  if(!freq) return null;
+  const A4=440;
+  const notes=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  let n=Math.round(12*Math.log2(freq/A4))+57;
+  return notes[n%12];
+}
 </script>
 </body>
 </html>
