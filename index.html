@@ -232,30 +232,35 @@
   const timeDomain = new Float32Array(bufSize);
 
   async function initAudio() {
-    if (audioBooted) return;
-    $status.textContent = '오디오 초기화…';
-    try {
-      // Prefer 44.1k or 48k; iOS may fix it internally
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false, noiseSuppression: false, autoGainControl: false,
-        }
-      });
-      micSource = audioCtx.createMediaStreamSource(stream);
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 4096; // higher resolution for autocorr
-      analyser.smoothingTimeConstant = 0.0;
-      micSource.connect(analyser);
-      $inputDevice.textContent = stream.getAudioTracks()[0]?.label || '마이크/오디오 인터페이스';
-      audioBooted = true;
-      $status.textContent = '수음 대기';
-      startDetectLoop();
-    } catch (err) {
-      console.error(err);
-      $status.textContent = '마이크 권한 거부됨';
-    }
+  if (audioBooted) return;
+  $status.textContent = '오디오 초기화…';
+  try {
+    // iOS 호환: sampleRate 옵션 제거
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume();
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false, noiseSuppression: false, autoGainControl: false,
+      }
+    });
+
+    micSource = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 4096;
+    analyser.smoothingTimeConstant = 0.0;
+    micSource.connect(analyser);
+
+    $inputDevice.textContent = stream.getAudioTracks()[0]?.label || '마이크/오디오 인터페이스';
+    audioBooted = true;
+    $status.textContent = '수음 대기';
+    startDetectLoop();
+  } catch (err) {
+    console.error(err);
+    $status.textContent = '마이크 권한 거부됨';
   }
+}
+
 
   function autoCorrelate(buf, sampleRate) {
     // Basic ACF pitch detection; returns fundamental frequency or -1
@@ -424,3 +429,4 @@
   </script>
 </body>
 </html>
+
