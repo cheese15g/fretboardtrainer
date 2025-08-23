@@ -2,93 +2,120 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Note Trainer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guitar Pitch Trainer</title>
   <style>
     body {
       background: white;
-      color: black;
-      font-family: Arial, sans-serif;
-      text-align: center;
       margin: 0;
-      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
     }
-    #note-display {
-      font-size: 8em;
-      margin: 50px 0;
+    #targetNote {
+      font-size: 10rem;
+      font-weight: bold;
+      margin-bottom: 2rem;
     }
     .controls {
-      margin-top: 20px;
+      display: flex;
+      gap: 1rem;
     }
     button {
-      padding: 10px 20px;
-      margin: 5px;
-      font-size: 1em;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
     }
-    #your-note {
-      margin-top: 20px;
-      font-size: 2em;
-      color: gray;
+    #currentNote {
+      margin-top: 1rem;
+      font-size: 2rem;
     }
   </style>
 </head>
 <body>
-  <div id="note-display">C</div>
-  
+  <div id="targetNote">C</div>
   <div class="controls">
-    <button id="toggle-accidentals">Accidentals: Off</button>
-    <button id="toggle-show-note">Show Your Note: Off</button>
+    <button id="toggleAccidentals">Accidentals: OFF</button>
+    <button id="toggleCurrent">Show Current Note</button>
   </div>
-  
-  <div id="your-note"></div>
+  <div id="currentNote"></div>
 
   <script>
     const naturalNotes = ["C", "D", "E", "F", "G", "A", "B"];
-    const accidentalNotes = [
-      "C#", "D♭", "D#", "E♭", "F#", "G♭", "G#", "A♭", "A#", "B♭"
-    ];
+    const accidentals = ["C#", "Db", "D#", "Eb", "F#", "Gb", "G#", "Ab", "A#", "Bb"];
     let useAccidentals = false;
-    let showYourNote = false;
-    let targetNote = "";
+    let showCurrent = false;
 
-    const noteDisplay = document.getElementById("note-display");
-    const yourNoteDisplay = document.getElementById("your-note");
-    const toggleAccidentals = document.getElementById("toggle-accidentals");
-    const toggleShowNote = document.getElementById("toggle-show-note");
+    const targetNoteEl = document.getElementById("targetNote");
+    const currentNoteEl = document.getElementById("currentNote");
+    const toggleAccidentalsBtn = document.getElementById("toggleAccidentals");
+    const toggleCurrentBtn = document.getElementById("toggleCurrent");
 
     function getRandomNote() {
-      let pool = [...naturalNotes];
-      if (useAccidentals) pool = pool.concat(accidentalNotes);
-      return pool[Math.floor(Math.random() * pool.length)];
+      const base = [...naturalNotes];
+      if (useAccidentals) base.push(...accidentals);
+      return base[Math.floor(Math.random() * base.length)];
     }
 
-    function newNote() {
-      targetNote = getRandomNote();
-      noteDisplay.textContent = targetNote;
-      document.body.style.background = "white";
-    }
+    let targetNote = getRandomNote();
+    targetNoteEl.textContent = targetNote;
 
-    toggleAccidentals.addEventListener("click", () => {
+    toggleAccidentalsBtn.onclick = () => {
       useAccidentals = !useAccidentals;
-      toggleAccidentals.textContent = "Accidentals: " + (useAccidentals ? "On" : "Off");
-      newNote();
-    });
+      toggleAccidentalsBtn.textContent = `Accidentals: ${useAccidentals ? "ON" : "OFF"}`;
+      targetNote = getRandomNote();
+      targetNoteEl.textContent = targetNote;
+    };
 
-    toggleShowNote.addEventListener("click", () => {
-      showYourNote = !showYourNote;
-      toggleShowNote.textContent = "Show Your Note: " + (showYourNote ? "On" : "Off");
-      if (!showYourNote) yourNoteDisplay.textContent = "";
-    });
+    toggleCurrentBtn.onclick = () => {
+      showCurrent = !showCurrent;
+      toggleCurrentBtn.textContent = showCurrent ? "Hide Current Note" : "Show Current Note";
+      if (!showCurrent) currentNoteEl.textContent = "";
+    };
 
-    function noteFromPitch(freq) {
-      const noteStrings = [
-        "C", "C#", "D", "D#", "E", "F",
-        "F#", "G", "G#", "A", "A#", "B"
-      ];
+    function noteFromPitch(frequency) {
       const A4 = 440;
-      const semitone = 69;
-      const midi = Math.round(12 * Math.log2(freq / A4) + semitone);
-      return noteStrings[midi % 12];
+      const semitone = 69 + 12 * Math.log2(frequency / A4);
+      const noteNumber = Math.round(semitone);
+      const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+      return noteNames[noteNumber % 12];
+    }
+
+    function autoCorrelate(buf, sampleRate) {
+      let SIZE = buf.length;
+      let rms = 0;
+      for (let i = 0; i < SIZE; i++) {
+        let val = buf[i] / 32768;
+        rms += val * val;
+      }
+      rms = Math.sqrt(rms / SIZE);
+      if (rms < 0.001) return -1;
+
+      let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+      for (let i = 0; i < SIZE / 2; i++) {
+        if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+      }
+      for (let i = 1; i < SIZE / 2; i++) {
+        if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
+      }
+
+      buf = buf.slice(r1, r2);
+      SIZE = buf.length;
+
+      let c = new Array(SIZE).fill(0);
+      for (let i = 0; i < SIZE; i++)
+        for (let j = 0; j < SIZE - i; j++)
+          c[i] = c[i] + buf[j] * buf[j + i];
+
+      let d = 0; while (c[d] > c[d + 1]) d++;
+      let maxval = -1, maxpos = -1;
+      for (let i = d; i < SIZE; i++) {
+        if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+      }
+      let T0 = maxpos;
+      return sampleRate / T0;
     }
 
     async function initAudio() {
@@ -99,71 +126,39 @@
           autoGainControl: false
         }
       });
+
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 2048;
+      analyser.fftSize = 32768;
+      analyser.minDecibels = -120;
+      analyser.maxDecibels = -10;
+      analyser.smoothingTimeConstant = 0.1;
+
+      const source = audioCtx.createMediaStreamSource(stream);
       source.connect(analyser);
+
       const bufferLength = analyser.fftSize;
       const buffer = new Float32Array(bufferLength);
 
-      function autoCorrelate(buf, sampleRate) {
-        let SIZE = buf.length;
-        let rms = 0;
-        for (let i = 0; i < SIZE; i++) {
-          let val = buf[i];
-          rms += val * val;
-        }
-        rms = Math.sqrt(rms / SIZE);
-        if (rms < 0.01) return -1; // sensitivity adjustment
-
-        let r1 = 0, r2 = SIZE - 1, thres = 0.2;
-        for (let i = 0; i < SIZE / 2; i++) {
-          if (Math.abs(buf[i]) < thres) { r1 = i; break; }
-        }
-        for (let i = 1; i < SIZE / 2; i++) {
-          if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
-        }
-
-        buf = buf.slice(r1, r2);
-        SIZE = buf.length;
-        let c = new Array(SIZE).fill(0);
-        for (let i = 0; i < SIZE; i++)
-          for (let j = 0; j < SIZE - i; j++)
-            c[i] = c[i] + buf[j] * buf[j + i];
-
-        let d = 0;
-        while (c[d] > c[d + 1]) d++;
-        let maxval = -1, maxpos = -1;
-        for (let i = d; i < SIZE; i++) {
-          if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
-        }
-        let T0 = maxpos;
-
-        return sampleRate / T0;
-      }
-
-      function update() {
+      function updatePitch() {
         analyser.getFloatTimeDomainData(buffer);
         const pitch = autoCorrelate(buffer, audioCtx.sampleRate);
         if (pitch !== -1) {
           const note = noteFromPitch(pitch);
-          if (showYourNote) yourNoteDisplay.textContent = "You: " + note;
-          if (note === targetNote || 
-              (note + "♭" === targetNote) || 
-              (note + "#" === targetNote)) {
-            document.body.style.background = "#b2ffb2";
-            newNote();
+          if (showCurrent) currentNoteEl.textContent = note;
+          if (note.replace(/#|b/, "") === targetNote.replace(/#|b/, "")) {
+            document.body.style.background = "#b3ffb3";
+            targetNote = getRandomNote();
+            targetNoteEl.textContent = targetNote;
           } else {
-            document.body.style.background = "#ffb2b2";
+            document.body.style.background = "white";
           }
         }
-        requestAnimationFrame(update);
+        requestAnimationFrame(updatePitch);
       }
-      update();
+      updatePitch();
     }
 
-    newNote();
     initAudio();
   </script>
 </body>
