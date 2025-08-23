@@ -3,160 +3,155 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Guitar Pitch Trainer</title>
+  <title>Guitar Note Trainer</title>
   <style>
     body {
-      background: white;
       margin: 0;
+      padding: 0;
+      background: #fff;
+      font-family: Arial, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       height: 100vh;
-      font-family: Arial, sans-serif;
     }
-    #targetNote {
-      font-size: 10rem;
-      font-weight: bold;
-      margin-bottom: 2rem;
+    #noteDisplay {
+      font-size: 5em;
+      margin-bottom: 20px;
     }
     .controls {
       display: flex;
-      gap: 1rem;
+      gap: 10px;
     }
     button {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
+      padding: 10px 15px;
+      font-size: 1em;
+      border: 1px solid #000;
+      border-radius: 8px;
+      background: #f5f5f5;
+      cursor: pointer;
     }
-    #currentNote {
-      margin-top: 1rem;
-      font-size: 2rem;
+    button.active {
+      background: #000;
+      color: #fff;
+    }
+    #playedNote {
+      margin-top: 15px;
+      font-size: 2em;
+      color: #333;
+      display: none;
     }
   </style>
 </head>
 <body>
-  <div id="targetNote">C</div>
+  <div id="noteDisplay">A</div>
   <div class="controls">
-    <button id="toggleAccidentals">Accidentals: OFF</button>
-    <button id="toggleCurrent">Show Current Note</button>
+    <button id="accidentalsBtn">Accidentals OFF</button>
+    <button id="showPlayedBtn">Show Played OFF</button>
   </div>
-  <div id="currentNote"></div>
+  <div id="playedNote"></div>
 
   <script>
     const naturalNotes = ["C", "D", "E", "F", "G", "A", "B"];
-    const accidentals = ["C#", "Db", "D#", "Eb", "F#", "Gb", "G#", "Ab", "A#", "Bb"];
-    let useAccidentals = false;
-    let showCurrent = false;
+    const accidentalNotes = ["C#", "D#", "F#", "G#", "A#", "Db", "Eb", "Gb", "Ab", "Bb"];
+    let includeAccidentals = false;
+    let showPlayed = false;
 
-    const targetNoteEl = document.getElementById("targetNote");
-    const currentNoteEl = document.getElementById("currentNote");
-    const toggleAccidentalsBtn = document.getElementById("toggleAccidentals");
-    const toggleCurrentBtn = document.getElementById("toggleCurrent");
+    const noteDisplay = document.getElementById("noteDisplay");
+    const accidentalsBtn = document.getElementById("accidentalsBtn");
+    const showPlayedBtn = document.getElementById("showPlayedBtn");
+    const playedNote = document.getElementById("playedNote");
 
-    function getRandomNote() {
-      const base = [...naturalNotes];
-      if (useAccidentals) base.push(...accidentals);
-      return base[Math.floor(Math.random() * base.length)];
+    // Pick a random note
+    function newNote() {
+      let pool = [...naturalNotes];
+      if (includeAccidentals) pool = pool.concat(accidentalNotes);
+      noteDisplay.textContent = pool[Math.floor(Math.random() * pool.length)];
     }
 
-    let targetNote = getRandomNote();
-    targetNoteEl.textContent = targetNote;
+    accidentalsBtn.addEventListener("click", () => {
+      includeAccidentals = !includeAccidentals;
+      accidentalsBtn.textContent = includeAccidentals ? "Accidentals ON" : "Accidentals OFF";
+      accidentalsBtn.classList.toggle("active", includeAccidentals);
+      newNote();
+    });
 
-    toggleAccidentalsBtn.onclick = () => {
-      useAccidentals = !useAccidentals;
-      toggleAccidentalsBtn.textContent = `Accidentals: ${useAccidentals ? "ON" : "OFF"}`;
-      targetNote = getRandomNote();
-      targetNoteEl.textContent = targetNote;
-    };
+    showPlayedBtn.addEventListener("click", () => {
+      showPlayed = !showPlayed;
+      showPlayedBtn.textContent = showPlayed ? "Show Played ON" : "Show Played OFF";
+      showPlayedBtn.classList.toggle("active", showPlayed);
+      playedNote.style.display = showPlayed ? "block" : "none";
+    });
 
-    toggleCurrentBtn.onclick = () => {
-      showCurrent = !showCurrent;
-      toggleCurrentBtn.textContent = showCurrent ? "Hide Current Note" : "Show Current Note";
-      if (!showCurrent) currentNoteEl.textContent = "";
-    };
-
-    function noteFromPitch(frequency) {
-      const A4 = 440;
-      const semitone = 69 + 12 * Math.log2(frequency / A4);
-      const noteNumber = Math.round(semitone);
-      const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-      return noteNames[noteNumber % 12];
-    }
-
-    function autoCorrelate(buf, sampleRate) {
-      let SIZE = buf.length;
-      let rms = 0;
-      for (let i = 0; i < SIZE; i++) {
-        let val = buf[i] / 32768;
-        rms += val * val;
-      }
-      rms = Math.sqrt(rms / SIZE);
-      if (rms < 0.001) return -1;
-
-      let r1 = 0, r2 = SIZE - 1, thres = 0.2;
-      for (let i = 0; i < SIZE / 2; i++) {
-        if (Math.abs(buf[i]) < thres) { r1 = i; break; }
-      }
-      for (let i = 1; i < SIZE / 2; i++) {
-        if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
-      }
-
-      buf = buf.slice(r1, r2);
-      SIZE = buf.length;
-
-      let c = new Array(SIZE).fill(0);
-      for (let i = 0; i < SIZE; i++)
-        for (let j = 0; j < SIZE - i; j++)
-          c[i] = c[i] + buf[j] * buf[j + i];
-
-      let d = 0; while (c[d] > c[d + 1]) d++;
-      let maxval = -1, maxpos = -1;
-      for (let i = d; i < SIZE; i++) {
-        if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
-      }
-      let T0 = maxpos;
-      return sampleRate / T0;
-    }
-
+    // Pitch detection
     async function initAudio() {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false
-        }
-      });
-
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 32768;
-      analyser.minDecibels = -120;
-      analyser.maxDecibels = -10;
-      analyser.smoothingTimeConstant = 0.1;
-
       const source = audioCtx.createMediaStreamSource(stream);
+
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 32768; // Higher resolution
+      analyser.smoothingTimeConstant = 0.2;
+
       source.connect(analyser);
+      const data = new Float32Array(analyser.fftSize);
 
-      const bufferLength = analyser.fftSize;
-      const buffer = new Float32Array(bufferLength);
+      function autoCorrelate(buf, sampleRate) {
+        let SIZE = buf.length;
+        let rms = 0;
+        for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+        rms = Math.sqrt(rms / SIZE);
+        if (rms < 0.005) return -1; // sensitivity
 
-      function updatePitch() {
-        analyser.getFloatTimeDomainData(buffer);
-        const pitch = autoCorrelate(buffer, audioCtx.sampleRate);
+        let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+        for (let i = 0; i < SIZE / 2; i++) if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+        for (let i = 1; i < SIZE / 2; i++) if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
+
+        buf = buf.slice(r1, r2);
+        SIZE = buf.length;
+
+        let c = new Array(SIZE).fill(0);
+        for (let i = 0; i < SIZE; i++)
+          for (let j = 0; j < SIZE - i; j++)
+            c[i] = c[i] + buf[j] * buf[j+i];
+
+        let d = 0; while (c[d] > c[d+1]) d++;
+        let maxval = -1, maxpos = -1;
+        for (let i = d; i < SIZE; i++) {
+          if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+        }
+        let T0 = maxpos;
+
+        return sampleRate / T0;
+      }
+
+      function noteFromPitch(frequency) {
+        const noteNum = 12 * (Math.log(frequency / 440) / Math.log(2));
+        return Math.round(noteNum) + 69;
+      }
+
+      function frequencyToNoteName(note) {
+        const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        return names[note % 12];
+      }
+
+      function update() {
+        analyser.getFloatTimeDomainData(data);
+        const pitch = autoCorrelate(data, audioCtx.sampleRate);
         if (pitch !== -1) {
           const note = noteFromPitch(pitch);
-          if (showCurrent) currentNoteEl.textContent = note;
-          if (note.replace(/#|b/, "") === targetNote.replace(/#|b/, "")) {
-            document.body.style.background = "#b3ffb3";
-            targetNote = getRandomNote();
-            targetNoteEl.textContent = targetNote;
-          } else {
-            document.body.style.background = "white";
+          const noteName = frequencyToNoteName(note);
+          if (showPlayed) playedNote.textContent = noteName;
+          if (noteName === noteDisplay.textContent.replace("b","")) {
+            newNote();
           }
         }
-        requestAnimationFrame(updatePitch);
+        requestAnimationFrame(update);
       }
-      updatePitch();
+
+      newNote();
+      update();
     }
 
     initAudio();
