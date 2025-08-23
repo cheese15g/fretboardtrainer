@@ -1,432 +1,154 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>지판 암기 트레이닝</title>
-  <style>
-    :root {
-      --bg: #0b0b0c;
-      --panel: #16171a;
-      --muted: #8e9096;
-      --text: #e9ecf1;
-      --accent: #3a78ff;
-      --ok: #2bbb5d;
-      --err: #ff3b30;
-      --ink: #111;
-      --card: #1d1f24;
-      --ring: rgba(58, 120, 255, 0.5);
-    }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body {
-      margin: 0; background: var(--bg); color: var(--text);
-      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                   "Noto Sans KR", "Apple SD Gothic Neo", Helvetica, Arial, "Apple Color Emoji",
-                   "Segoe UI Emoji";
-      letter-spacing: 0.2px;
-    }
-    .app {
-      display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 10px;
-      max-width: 900px; margin: 0 auto; padding: 16px;
-    }
-    .title { font-weight: 700; font-size: 22px; }
-    .panel { background: var(--panel); border-radius: 14px; padding: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.35); }
-
-    .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; }
-    .targets {
-      display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 8px;
-    }
-    .note {
-      background: var(--card); border: 1px solid #2a2d33; border-radius: 12px; padding: 14px 10px;
-      text-align: center; font-weight: 800; font-size: 24px; letter-spacing: 1px; user-select: none;
-      transition: background 120ms ease, color 120ms ease, transform 80ms ease, border-color 120ms ease;
-      min-height: 56px; display: grid; place-items: center;
-    }
-    .note.current { background: #000; color: #fff; border-color: #000; }
-    .note.ok { background: rgba(43,187,93,0.12); color: var(--ok); border-color: rgba(43,187,93,0.35); }
-    .note.flash-error { animation: flashRed 300ms ease; }
-    @keyframes flashRed { 0% { background: var(--err); } 100% { background: var(--card); } }
-
-    .controls {
-      display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
-    }
-    button.primary {
-      appearance: none; border: 0; border-radius: 12px; padding: 14px 16px; font-weight: 800; font-size: 16px;
-      background: var(--accent); color: #fff; letter-spacing: 0.6px; cursor: pointer;
-      box-shadow: 0 8px 18px var(--ring);
-    }
-    button.primary:active { transform: translateY(1px); }
-    button.primary[disabled] { opacity: 0.5; cursor: not-allowed; }
-
-    .options-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 8px;
-    }
-    .opt { background: var(--card); border-radius: 12px; padding: 10px; border: 1px solid #2a2d33; }
-    .opt label { display: flex; align-items: center; gap: 8px; font-weight: 600; }
-    .opt small { display: block; margin-top: 6px; color: var(--muted); min-height: 1.2em; }
-
-    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .stat { background: var(--card); border-radius: 12px; padding: 10px; border: 1px solid #2a2d33; }
-    .stat .label { color: var(--muted); font-size: 12px; }
-    .stat .value { font-size: 18px; font-weight: 800; margin-top: 4px; min-height: 1.4em; }
-
-    .footer { color: var(--muted); font-size: 12px; text-align: center; padding: 10px 0 20px; }
-
-    /* Keep layout fixed: placeholders are shown as '-' when option is off */
-    .placeholder { color: var(--muted); opacity: 0.8; }
-
-    /* Mobile tweaks */
-    @media (max-width: 640px) {
-      .targets { gap: 6px; }
-      .note { font-size: 20px; padding: 12px 8px; min-height: 50px; }
-      .options-grid { grid-template-columns: repeat(2, 1fr); }
-      .info-grid { grid-template-columns: 1fr; }
-      .controls { grid-template-columns: 1fr; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>지판 암기 트레이너</title>
+<style>
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    font-family: sans-serif;
+  }
+  .container {
+    border: 3px solid black;
+    width: 300px;
+    padding: 5px;
+  }
+  .top-row {
+    display: flex;
+    justify-content: space-between;
+  }
+  .note-block {
+    flex: 1;
+    border: 2px solid black;
+    text-align: center;
+    padding: 5px;
+    margin: 2px;
+    font-weight: bold;
+    font-size: 18px;
+  }
+  .middle-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+  }
+  .middle-row button {
+    flex: 1;
+    border: 2px solid black;
+    background: white;
+    margin: 2px;
+    font-size: 16px;
+  }
+  #noteDisplay, #timeDisplay {
+    font-weight: bold;
+  }
+  .big-button {
+    display: block;
+    width: 100%;
+    border: 2px solid black;
+    background: white;
+    margin: 5px 0;
+    font-size: 18px;
+    padding: 8px;
+  }
+  .option-button {
+    display: block;
+    width: 100%;
+    border: 2px solid black;
+    background: white;
+    margin: 3px 0;
+    padding: 6px;
+    font-size: 16px;
+  }
+  .active {
+    background: lightgreen;
+  }
+</style>
 </head>
 <body>
-  <div class="app">
-    <div class="title">지판 암기 트레이닝</div>
-
-    <!-- Initial targets panel -->
-    <div class="panel" id="targetsPanel">
-      <div class="row">
-        <div style="font-weight:700">목표 음</div>
-        <button id="rollBtn" class="primary">ROLL</button>
-      </div>
-      <div class="targets" id="targets">
-        <!-- Start with E A D G B E -->
-        <div class="note" data-index="0">E</div>
-        <div class="note" data-index="1">A</div>
-        <div class="note" data-index="2">D</div>
-        <div class="note" data-index="3">G</div>
-        <div class="note" data-index="4">B</div>
-        <div class="note" data-index="5">E</div>
-      </div>
-    </div>
-
-    <!-- Options (fixed layout) -->
-    <div class="panel">
-      <div style="font-weight:700; margin-bottom:6px">옵션</div>
-      <div class="options-grid">
-        <div class="opt">
-          <label><input type="checkbox" id="optUnique" /> 3-1. 중복 금지</label>
-          <small>중복 허용 시: <span class="placeholder">-</span></small>
-        </div>
-        <div class="opt">
-          <label><input type="checkbox" id="optAccidentals" /> 3-2. 플랫/샵 포함</label>
-          <small>포함 안함 시: <span class="placeholder">-</span></small>
-        </div>
-        <div class="opt">
-          <label><input type="checkbox" id="optShowDetected" /> 3-3. 수음한 음 표시</label>
-          <small id="detectedNoteLabel" class="placeholder">-</small>
-        </div>
-        <div class="opt">
-          <label><input type="checkbox" id="optAutoAdvance" /> 3-4. 6개 정답 후 자동 진행</label>
-          <small>해제 시: <span class="placeholder">-</span></small>
-        </div>
-      </div>
-    </div>
-
-    <!-- Info row (fixed) -->
-    <div class="panel">
-      <div class="info-grid">
-        <div class="stat">
-          <div class="label">라운드 시간 (초)</div>
-          <div class="value" id="timer">0.0</div>
-        </div>
-        <div class="stat">
-          <div class="label">입력 장치</div>
-          <div class="value" id="inputDevice">-</div>
-        </div>
-        <div class="stat">
-          <div class="label">상태</div>
-          <div class="value" id="status">대기</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="footer">모바일(마이크)·데스크탑(오디오 인터페이스) 모두 지원. Safari/iOS의 정책상 첫 ROLL 클릭 시 마이크 권한이 요청됨.</div>
+<div class="container">
+  <div class="top-row">
+    <div class="note-block">E</div>
+    <div class="note-block">A</div>
+    <div class="note-block">D</div>
+    <div class="note-block">G</div>
+    <div class="note-block">B</div>
+    <div class="note-block">E</div>
   </div>
 
-  <script>
-  // ===== Note & pitch utilities =====
-  const NATURAL_NOTES = ["C","D","E","F","G","A","B"]; // for base order (not used directly for pitch map)
-  const NOTE_NAMES_SHARP = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-  const NOTE_NAMES_FLAT  = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
-  const A4 = 440;
-  const SEMITONE = Math.pow(2, 1/12);
+  <div class="middle-row">
+    <button id="noteToggle">음표시</button>
+    <button id="timeToggle">시간표시</button>
+  </div>
 
-  function freqToNoteIndex(freq) {
-    // Return MIDI-like index (A4 = 69)
-    const n = Math.round(12 * Math.log2(freq / A4)) + 69;
-    return n;
-  }
-  function noteIndexToName(idx, preferSharps=true) {
-    const name = preferSharps ? NOTE_NAMES_SHARP[idx % 12] : NOTE_NAMES_FLAT[idx % 12];
-    return name;
-  }
-  function enharmonicPair(idx) {
-    return NOTE_NAMES_SHARP[idx % 12] + "/" + NOTE_NAMES_FLAT[idx % 12];
-  }
+  <button class="big-button" id="rollBtn">roll</button>
 
-  // Accept enharmonic matches regardless of display variant
-  function isNameMatch(targetName, detectedIdx) {
-    const sharpName = NOTE_NAMES_SHARP[detectedIdx % 12];
-    const flatName  = NOTE_NAMES_FLAT[detectedIdx % 12];
-    if (targetName.includes("/")) {
-      // target already shows both
-      const [a,b] = targetName.split("/");
-      return a === sharpName || a === flatName || b === sharpName || b === flatName;
+  <button class="option-button" id="dupBtn">중복금지</button>
+  <button class="option-button" id="accBtn">플랫 샵표시</button>
+  <button class="option-button" id="autoBtn">오토롤</button>
+</div>
+
+<script>
+  let noteMode = false;
+  let timeMode = true;
+  let timerId = null;
+  let startTime = null;
+
+  const noteBtn = document.getElementById('noteToggle');
+  const timeBtn = document.getElementById('timeToggle');
+  const rollBtn = document.getElementById('rollBtn');
+
+  const dupBtn = document.getElementById('dupBtn');
+  const accBtn = document.getElementById('accBtn');
+  const autoBtn = document.getElementById('autoBtn');
+
+  // 음표시 버튼
+  noteBtn.addEventListener('click', () => {
+    noteMode = !noteMode;
+    noteBtn.classList.toggle('active', noteMode);
+    if (noteMode) {
+      noteBtn.textContent = "음표: C"; // 예시 표시
+    } else {
+      noteBtn.textContent = "음표시";
     }
-    return targetName === sharpName || targetName === flatName;
-  }
+  });
 
-  // Pool creation according to options
-  function buildNotePool(includeAccidentals) {
-    if (includeAccidentals) {
-      // 12 chromatic notes (represented by sharp names for uniqueness)
-      return [...NOTE_NAMES_SHARP];
+  // 시간표시 버튼
+  timeBtn.addEventListener('click', () => {
+    timeMode = !timeMode;
+    timeBtn.classList.toggle('active', timeMode);
+    if (!timeMode) {
+      timeBtn.textContent = "시간정지";
+      clearInterval(timerId);
+    } else {
+      timeBtn.textContent = "시간표시";
+      startTimer();
     }
-    // Naturals only
-    return ["C","D","E","F","G","A","B"]; // Without accidentals
-  }
-
-  function randomSix(pool, unique) {
-    const out = [];
-    const used = new Set();
-    while (out.length < 6) {
-      const pick = pool[Math.floor(Math.random()*pool.length)];
-      if (unique && used.has(pick)) continue;
-      out.push(pick);
-      used.add(pick);
-    }
-    return out;
-  }
-
-  // ===== UI State =====
-  const $targets = document.getElementById('targets');
-  const $notes = () => Array.from($targets.querySelectorAll('.note'));
-  const $roll = document.getElementById('rollBtn');
-  const $timer = document.getElementById('timer');
-  const $status = document.getElementById('status');
-  const $inputDevice = document.getElementById('inputDevice');
-  const $detectedNoteLabel = document.getElementById('detectedNoteLabel');
-
-  const $optUnique = document.getElementById('optUnique');
-  const $optAcc = document.getElementById('optAccidentals');
-  const $optShowDet = document.getElementById('optShowDetected');
-  const $optAuto = document.getElementById('optAutoAdvance');
-
-  let targets = ['E','A','D','G','B','E'];
-  let currentIndex = 0;
-  let timerStart = null;
-  let timerHandle = null;
-  let audioBooted = false;
-
-  // ===== Pitch Detection (Auto-correlation) =====
-  let audioCtx, analyser, micSource, processNode;
-  const bufSize = 2048; // conservative for iOS Safari compatibility
-  const timeDomain = new Float32Array(bufSize);
-
-  async function initAudio() {
-  if (audioBooted) return;
-  $status.textContent = '오디오 초기화…';
-  try {
-    // iOS 호환: sampleRate 옵션 제거
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    await audioCtx.resume();
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false, noiseSuppression: false, autoGainControl: false,
-      }
-    });
-
-    micSource = audioCtx.createMediaStreamSource(stream);
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 4096;
-    analyser.smoothingTimeConstant = 0.0;
-    micSource.connect(analyser);
-
-    $inputDevice.textContent = stream.getAudioTracks()[0]?.label || '마이크/오디오 인터페이스';
-    audioBooted = true;
-    $status.textContent = '수음 대기';
-    startDetectLoop();
-  } catch (err) {
-    console.error(err);
-    $status.textContent = '마이크 권한 거부됨';
-  }
-}
-
-
-  function autoCorrelate(buf, sampleRate) {
-    // Basic ACF pitch detection; returns fundamental frequency or -1
-    // Ported/condensed for clarity & robustness on mobile mics
-    let SIZE = buf.length;
-    let rms = 0;
-    for (let i=0; i<SIZE; i++) { const v = buf[i]; rms += v*v; }
-    rms = Math.sqrt(rms / SIZE);
-    if (rms < 0.01) return -1; // too quiet
-
-    let r1=0, r2=SIZE-1, thres=0.2;
-    for (let i=0; i<SIZE/2; i++) { if (Math.abs(buf[i])<thres) { r1=i; break; } }
-    for (let i=1; i<SIZE/2; i++) { if (Math.abs(buf[SIZE-i])<thres) { r2=SIZE-i; break; } }
-    buf = buf.slice(r1, r2);
-    SIZE = buf.length;
-
-    const c = new Array(SIZE).fill(0);
-    for (let i=0; i<SIZE; i++) {
-      for (let j=0; j<SIZE-i; j++) {
-        c[i] = c[i] + buf[j]*buf[j+i];
-      }
-    }
-    let d=0; while (d<SIZE && c[d]>c[d+1]) d++;
-    let maxval=-1, maxpos=-1;
-    for (let i=d; i<SIZE; i++) {
-      if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
-    }
-    if (maxpos <= 0) return -1;
-    const T0 = maxpos;
-    // Parabolic interpolation for better precision
-    const x1 = c[T0-1], x2 = c[T0], x3 = c[T0+1];
-    const a = (x1 + x3 - 2*x2) / 2;
-    const b = (x3 - x1) / 2;
-    const shift = a ? -b / (2*a) : 0;
-    const period = T0 + shift;
-    const freq = sampleRate / period;
-    if (freq < 50 || freq > 2000) return -1; // guitar-friendly range
-    return freq;
-  }
-
-  function startDetectLoop() {
-    function tick() {
-      if (!analyser) return requestAnimationFrame(tick);
-      analyser.getFloatTimeDomainData(timeDomain);
-      const freq = autoCorrelate(timeDomain, audioCtx.sampleRate);
-      if (freq !== -1) {
-        const idx = freqToNoteIndex(freq);
-        const preferSharps = true; // display preference for detected label; matching accepts both
-        const name = noteIndexToName(idx, preferSharps);
-        // Optionally show detected note (ignore octave)
-        if ($optShowDet.checked) {
-          $detectedNoteLabel.textContent = name;
-        } else {
-          $detectedNoteLabel.textContent = '-';
-        }
-        handleDetection(idx);
-      } else {
-        if ($optShowDet.checked) $detectedNoteLabel.textContent = '…';
-      }
-      requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-  }
-
-  // ===== Game Logic =====
-  function applyTargets(list) {
-    targets = list;
-    currentIndex = 0;
-    renderTargets();
-    startTimer();
-    $status.textContent = '라운드 진행 중';
-  }
-
-  function renderTargets() {
-    const nodes = $notes();
-    nodes.forEach((el, i) => {
-      el.classList.remove('ok','current','flash-error');
-      // If accidentals option on, show enharmonic pair for targets that are sharp names
-      const t = targets[i];
-      if ($optAcc.checked && t.includes('#')) {
-        // Show C#/Db style for readability; still matched enharmonically
-        const idx = NOTE_NAMES_SHARP.indexOf(t);
-        el.textContent = enharmonicPair(idx);
-      } else {
-        el.textContent = t;
-      }
-    });
-    // Mark current
-    nodes[0]?.classList.add('current');
-  }
+  });
 
   function startTimer() {
-    if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
-    timerStart = performance.now();
-    $timer.textContent = '0.0';
-    timerHandle = setInterval(() => {
-      const elapsed = (performance.now() - timerStart) / 1000;
-      $timer.textContent = elapsed.toFixed(1);
+    startTime = Date.now();
+    clearInterval(timerId);
+    timerId = setInterval(() => {
+      if (timeMode) {
+        const elapsed = ((Date.now() - startTime)/1000).toFixed(1);
+        timeBtn.textContent = elapsed + "초";
+      }
     }, 100);
   }
 
-  function stopTimer() {
-    if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
-  }
-
-  function handleDetection(noteIdx) {
-    // Match against current target only; advance when correct
-    const nodes = $notes();
-    const curNode = nodes[currentIndex];
-    if (!curNode) return; // already finished
-
-    const targetText = curNode.textContent; // could be "C#/Db" etc
-    if (isNameMatch(targetText, noteIdx)) {
-      // Correct
-      curNode.classList.remove('current','flash-error');
-      curNode.classList.add('ok');
-      currentIndex++;
-      const next = nodes[currentIndex];
-      if (next) {
-        next.classList.add('current');
-      } else {
-        // Completed
-        stopTimer();
-        $status.textContent = '라운드 완료';
-        if ($optAuto.checked) {
-          // Auto-roll next round after a short pause, no layout change
-          setTimeout(() => roll(), 500);
-        }
-      }
-    } else {
-      // Wrong: flash red on current target
-      curNode.classList.remove('flash-error');
-      void curNode.offsetWidth; // restart animation
-      curNode.classList.add('flash-error');
-    }
-  }
-
-  async function roll() {
-    if (!audioBooted) await initAudio();
-    const pool = buildNotePool($optAcc.checked);
-    const list = randomSix(pool, $optUnique.checked);
-    applyTargets(list);
-  }
-
-  // ===== Events =====
-  $roll.addEventListener('click', roll);
-
-  // Ensure fixed layout: toggling options only affects content, not structure
-  [$optUnique, $optAcc, $optShowDet, $optAuto].forEach(cb => {
-    cb.addEventListener('change', () => {
-      // Re-render label formats when accidentals toggle changes
-      if (cb === $optAcc) renderTargets();
-      // Keep placeholders if a display option is off
-      if (!$optShowDet.checked) $detectedNoteLabel.textContent = '-';
-    });
+  rollBtn.addEventListener('click', () => {
+    startTimer();
   });
 
-  // iOS wake-up on page interaction (in case user touches elsewhere first)
-  document.addEventListener('touchstart', () => {
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-  }, { passive: true });
-
-  // Start state: E A D G B E already rendered
-  // Mark first as current for visual consistency
-  $notes()[0].classList.add('current');
-  </script>
+  // 옵션 버튼 토글
+  [dupBtn, accBtn, autoBtn].forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('active');
+    });
+  });
+</script>
 </body>
 </html>
-
