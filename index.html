@@ -1,520 +1,351 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-<title>지판 암기 트레이닝</title>
-<style>
-  :root { --border:4px solid #000; --gap:8px; --bg:#fff; --font: 'Malgun Gothic', Arial, sans-serif; }
-  body { margin:20px; font-family:var(--font); display:flex; justify-content:center; }
-  .frame {
-    width:360px; border:var(--border); padding:10px; box-sizing:border-box;
-    display:flex; flex-direction:column; gap:8px;
-  }
-  .top-row { display:flex; gap:6px; justify-content:space-between; }
-  .string-block { flex:1; border:3px solid #000; height:44px; display:flex; align-items:center; justify-content:center; font-weight:700; background:#fff; user-select:none; }
-  .controls-row { display:flex; gap:6px; }
-  .control { flex:1; border:3px solid #000; height:44px; display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none; background:#fff; }
-  .control.on { background:#d0f0d0; } /* 토글 표시(단순 색) */
-  .big-roll { border:3px solid #000; height:74px; display:flex; align-items:center; justify-content:center; font-size:20px; cursor:pointer; user-select:none; }
-  .option-list { display:flex; flex-direction:column; gap:6px; }
-  .option-btn { border:3px solid #000; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none; background:#fff; }
-  .strings-area { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:8px; }
-  .target { border:3px solid #000; height:56px; display:flex; align-items:center; justify-content:center; background:#fff; font-weight:700; }
-  .target.correct { background:#9ae69a; } /* 초록 고정 */
-  .target.wrong { background:#ff9a9a; } /* 빨강 잠깐 */
-  .placeholder { height:36px; border:3px solid #000; display:flex; align-items:center; justify-content:center; }
-  .status { margin-top:8px; height:120px; border:3px solid #000; padding:6px; box-sizing:border-box; overflow:auto; }
-  .top-note-text { font-size:14px; }
-  .timer { margin-left:8px; font-weight:700; }
-  .device-select { display:flex; gap:6px; align-items:center; }
-  .badge { padding:4px 6px; border:2px solid #000; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>무작위 음 맞추기</title>
+  <style>
+    :root {
+      --bg: #0b0b0c;
+      --fg: #f5f7fb;
+      --muted: #a9b0bd;
+      --accent: #8ab4ff;
+      --ok: #16a34a;      /* 정답색 */
+      --ng: #b91c1c;      /* 오답색 */
+      --card: #15171a;
+      --btn: #1f2329;
+      --btnBorder: #2a2f36;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Malgun Gothic", Apple SD Gothic Neo, "Noto Sans KR", sans-serif;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    }
+    .wrap {
+      height: 100%; width: 100%; display: grid;
+      grid-template-rows: auto 1fr auto; gap: 12px; padding: 16px;
+    }
+    header { display:flex; align-items:center; justify-content:space-between; }
+    .title { font-weight: 700; letter-spacing: .3px; color: var(--muted); font-size: 14px; }
+    .controls { display:flex; gap: 8px; align-items:center; flex-wrap:wrap; }
+    .row { display:flex; gap: 8px; align-items:center; flex-wrap:wrap; }
+    select, button, .toggle {
+      font-size: 14px; border-radius: 14px; padding: 10px 14px; border: 1px solid var(--btnBorder);
+      background: var(--btn); color: var(--fg); cursor: pointer; outline: none;
+    }
+    select { appearance: none; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .toggle { display:inline-flex; align-items:center; gap:8px; user-select:none; }
+    .toggle input { appearance:none; width:36px; height:22px; border-radius:999px; background:#31363d; position:relative; outline:none; border:1px solid var(--btnBorder); }
+    .toggle input:after { content:""; position:absolute; top:1px; left:1px; width:18px; height:18px; background:#c7cbd2; border-radius:50%; transition:.2s; }
+    .toggle input:checked { background:#2a353f; }
+    .toggle input:checked:after { left:16px; background:#9ec1ff; }
+
+    .stage {
+      display:grid; place-items:center; background: var(--card);
+      border-radius: 24px; border:1px solid #23272f; position:relative;
+      min-height: 60vh; padding: 12px;
+    }
+    .big-note { font-size: clamp(64px, 18vw, 220px); font-weight: 800; line-height: 1; letter-spacing: -2px; }
+    .status {
+      position:absolute; top:12px; right:12px; font-size:12px; padding:6px 10px; border-radius:999px;
+      border:1px solid var(--btnBorder); background: #121417; color: var(--muted);
+    }
+    .status.ok { background: rgba(22,163,74,.12); color: #7ee0a3; border-color: rgba(22,163,74,.35); }
+    .status.ng { background: rgba(185,28,28,.12); color: #ff9f9f; border-color: rgba(185,28,28,.35); }
+
+    .monitor { display:none; position:absolute; bottom:12px; left:12px; right:12px; }
+    .monitor.show { display:block; }
+    .card { background:#0f1216; border:1px solid #23272f; border-radius:16px; padding:10px 12px; color:#d4dae6; }
+    .card .kvs { display:flex; flex-wrap:wrap; gap:14px; font-size:13px; }
+    .kv { opacity:.9; }
+    .kv .k { color:#95a1b2; margin-right:6px; }
+
+    footer { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+    .legend { color: var(--muted); font-size: 12px; }
+    .grow { flex: 1 1 auto; }
+  </style>
 </head>
 <body>
-  <div class="frame">
-    <!-- 상단 6개 블럭 -->
-    <div class="top-row" id="topRow">
-      <div class="string-block" data-idx="0">E</div>
-      <div class="string-block" data-idx="1">A</div>
-      <div class="string-block" data-idx="2">D</div>
-      <div class="string-block" data-idx="3">G</div>
-      <div class="string-block" data-idx="4">B</div>
-      <div class="string-block" data-idx="5">E</div>
-    </div>
-
-    <!-- 음표시 / 시간표시 영역 (고정 자리) -->
-    <div style="display:flex;gap:8px;">
-      <div class="control" id="noteDisplayToggle">음표시</div>
-      <div class="control" id="timeDisplayArea">시간표시 <span class="timer" id="timerText">-</span></div>
-    </div>
-
-    <!-- Roll 버튼 -->
-    <div class="big-roll" id="rollBtn">roll</div>
-
-    <!-- 옵션들 (고정 자리) -->
-    <div class="option-list" style="width:100%;">
-      <div class="option-btn" id="noDupBtn">중복금지</div>
-      <div class="option-btn" id="accidentalBtn">플랫 샵표시</div>
-      <div class="option-btn" id="showNoteBtn">음표시 (검출음)</div>
-      <div class="option-btn" id="autoRollBtn">오토롤</div>
-    </div>
-
-    <!-- 장치 선택 및 상태 -->
-    <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-      <div class="device-select">
-        <label for="deviceSelect">입력장치</label>
-        <select id="deviceSelect"></select>
+  <div class="wrap">
+    <header>
+      <div class="title">무작위 음 맞추기 · 옥타브 무시 / 자연음(C D E F G A B)만 출제</div>
+      <div class="controls">
+        <div class="row">
+          <label class="legend" for="device">입력장치</label>
+          <select id="device"></select>
+        </div>
+        <button id="startBtn">입력 시작</button>
+        <button id="stopBtn" disabled>정지</button>
+        <button id="nextBtn" title="다음 문제(수동)">새 문제</button>
+        <label class="toggle" title="누르면 앞으로 수음되는 음을 표시 / 다시 누르면 숨김">
+          <input id="showMonitor" type="checkbox" />
+          내가 치는 음 보기
+        </label>
       </div>
-      <div class="badge" id="detectedNote">-</div>
-    </div>
+    </header>
 
-    <!-- 고정된 6개 타겟 블럭 영역 -->
-    <div class="strings-area" id="targetsArea">
-      <div class="target" data-pos="0">E</div>
-      <div class="target" data-pos="1">A</div>
-      <div class="target" data-pos="2">D</div>
-      <div class="target" data-pos="3">G</div>
-      <div class="target" data-pos="4">B</div>
-      <div class="target" data-pos="5">E</div>
-    </div>
+    <main class="stage" id="stage">
+      <div id="status" class="status">대기 중</div>
+      <div id="target" class="big-note">—</div>
 
-    <!-- 상태박스 -->
-    <div class="status" id="logArea">
-      상태: 준비됨.
-      <div style="margin-top:8px;">주의: 마이크/오인페 환경에 따라 음 검출 정확도가 달라질 수 있습니다. 확실하지 않음.</div>
-    </div>
+      <div id="monitor" class="monitor">
+        <div class="card">
+          <div class="kvs">
+            <span class="kv"><span class="k">현재 음:</span><span id="detNote">–</span></span>
+            <span class="kv"><span class="k">주파수:</span><span id="detFreq">–</span> Hz</span>
+            <span class="kv"><span class="k">RMS:</span><span id="detRms">–</span></span>
+            <span class="kv"><span class="k">라그:</span><span id="detLag">–</span></span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="legend">iOS/안드로이드/데스크탑 브라우저에서 동작. iOS는 반드시 버튼으로 시작해야 함(WebAudio 정책).</div>
+      <div class="grow"></div>
+      <div class="legend">정답 = 배경 가장자리 녹색 / 오답 = 붉은 테두리</div>
+    </footer>
   </div>
 
-<script>
-/*
-  지판 암기 트레이닝 웹앱
-  - 파일로 저장한 뒤 브라우저에서 열면 동작
-  - 마이크/오디오 입력 권한 필요
-  - 구현 방식: WebAudio + 오토상관 피치검출
-*/
+  <script>
+    // ====== 기본 설정 ======
+    const NATURAL_NOTES = ["C","D","E","F","G","A","B"]; // 출제용
+    const NATURAL_TO_SEMITONE = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+    const ALL_NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
-/* ---------- 설정 및 전역 ---------- */
-const NATURAL_NOTES = ['C','D','E','F','G','A','B'];
-const SEMI_NOTES_SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-const SEMI_NOTES_FLAT  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
-// 음계 표준 A4 = 440Hz
-const A4_FREQ = 440;
-const NOTE_LOG = []; // 로그
-let audioCtx=null, analyser=null, sourceNode=null, mediaStream=null;
-let deviceId = null;
-let rafId = null;
-let bufferLen = 2048;
-let isDetecting = false;
+    let audioCtx = null;
+    let mediaStream = null;
+    let analyser = null;
+    let rafId = null;
+    let sampleRate = 48000;
+    let currentTarget = null; // e.g., 'C'
+    let lastTarget = null;
+    const stage = document.getElementById('stage');
+    const statusEl = document.getElementById('status');
+    const targetEl = document.getElementById('target');
+    const deviceSel = document.getElementById('device');
+    const monitor = document.getElementById('monitor');
+    const detNoteEl = document.getElementById('detNote');
+    const detFreqEl = document.getElementById('detFreq');
+    const detRmsEl = document.getElementById('detRms');
+    const detLagEl = document.getElementById('detLag');
 
-/* UI 요소 */
-const topRow = document.getElementById('topRow');
-const rollBtn = document.getElementById('rollBtn');
-const noDupBtn = document.getElementById('noDupBtn');
-const accidentalBtn = document.getElementById('accidentalBtn');
-const showNoteBtn = document.getElementById('showNoteBtn');
-const autoRollBtn = document.getElementById('autoRollBtn');
-const deviceSelect = document.getElementById('deviceSelect');
-const detectedNoteBadge = document.getElementById('detectedNote');
-const targetsArea = document.getElementById('targetsArea');
-const timerText = document.getElementById('timerText');
-const logArea = document.getElementById('logArea');
+    // UI 버튼
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const showMonitor = document.getElementById('showMonitor');
 
-let options = {
-  noDup: false,
-  accidental: false,
-  showNote: false,
-  autoRoll: false
-};
-
-let currentTargets = ['E','A','D','G','B','E']; // 표시되는 6음 (문자열)
-let targetStates = [false,false,false,false,false,false]; // 정답 고정 유무
-let currentIndex = 0; // 지금 맞춰야 할 블럭 인덱스
-let timer = { running:false, start:0, elapsed:0, intervalId:null, enabled:true };
-
-/* ---------- 유틸: 주파수 -> 음으로 매핑 ---------- */
-function freqToNote(freq, useAccidental=false) {
-  if (!freq || freq<=0) return null;
-  // MIDI 노트 번호 계산: n = 69 + 12*log2(freq/440)
-  const n = 69 + 12 * Math.log2(freq / A4_FREQ);
-  const roundN = Math.round(n);
-  const noteIndex = (roundN + 120) % 12; // 0..11
-  const octave = Math.floor(roundN / 12) - 1;
-  const name = useAccidental ? SEMI_NOTES_SHARP[noteIndex] : SEMI_NOTES_SHARP[noteIndex]; // 기본은 샵 표기
-  return { name, octave, midi: roundN, semitone: noteIndex };
-}
-
-// natural note comparison: C D E F G A B regardless of octave; map semitone->natural
-function semitoneToNatural(semi) {
-  // semi 0..11 where 0=C
-  const map = {
-    0:'C',1:'C',2:'D',3:'D',4:'E',5:'F',6:'F',7:'G',8:'G',9:'A',10:'A',11:'B'
-  };
-  return map[semi%12];
-}
-
-function semitoneToDisplay(semi, useAccidental) {
-  if (useAccidental) return SEMI_NOTES_SHARP[semi%12];
-  // If no accidental allowed, show natural: choose proper natural among semitone
-  return semitoneToNatural(semi);
-}
-
-/* ---------- 랜덤 타겟 생성 ---------- */
-function generateTargets() {
-  // 옵션에 따라 후보군 설정
-  let candidates = [];
-  if (options.accidental) {
-    // 12 semitones, represent as note strings C..B with # where applicable
-    candidates = SEMI_NOTES_SHARP.slice(); // length 12
-  } else {
-    candidates = NATURAL_NOTES.slice(); // 7 naturals
-  }
-
-  // when noDup true, ensure uniqueness across 6 picks (if candidates <6, allow duplicates and mark 확실하지 않음)
-  let picks = [];
-  if (options.noDup && candidates.length >= 6) {
-    let pool = candidates.slice();
-    for (let i=0;i<6;i++) {
-      const idx = Math.floor(Math.random()*pool.length);
-      picks.push(pool[idx]);
-      pool.splice(idx,1);
+    function pickRandomNatural() {
+      let n;
+      do { n = NATURAL_NOTES[Math.floor(Math.random()*NATURAL_NOTES.length)]; } while (n === lastTarget);
+      lastTarget = n; return n;
     }
-  } else {
-    // allow duplicates
-    for (let i=0;i<6;i++) {
-      const idx = Math.floor(Math.random()*candidates.length);
-      picks.push(candidates[idx]);
+
+    function setTarget(note) {
+      currentTarget = note;
+      targetEl.textContent = note;
     }
-    if (options.noDup && candidates.length < 6) {
-      // 후보가 6미만인데 noDup 선택된 경우, 불충분함 알림
-      appendLog('확실하지 않음: 후보음이 6개 미만이므로 중복금지 옵션을 지킬 수 없습니다.');
+
+    function setStatus(type, text) {
+      statusEl.classList.remove('ok','ng');
+      if (type === 'ok') statusEl.classList.add('ok');
+      if (type === 'ng') statusEl.classList.add('ng');
+      statusEl.textContent = text;
+      stage.style.boxShadow = type === 'ok'
+        ? '0 0 0 6px rgba(22,163,74,.35) inset'
+        : type === 'ng'
+          ? '0 0 0 6px rgba(185,28,28,.35) inset'
+          : 'none';
     }
-  }
-  currentTargets = picks;
-  // reflect top row and target blocks
-  const topBlocks = topRow.querySelectorAll('.string-block');
-  topBlocks.forEach((el,i) => el.textContent = currentTargets[i]);
-  const tblocks = targetsArea.querySelectorAll('.target');
-  tblocks.forEach((el,i)=> { el.textContent = currentTargets[i]; el.classList.remove('correct','wrong'); });
-  targetStates = [false,false,false,false,false,false];
-  currentIndex = 0;
-  updateTargetHighlight();
-}
 
-/* ---------- UI 헬퍼 ---------- */
-function appendLog(msg) {
-  const d = document.createElement('div');
-  d.textContent = `${new Date().toLocaleTimeString()} - ${msg}`;
-  logArea.prepend(d);
-}
-function updateOptionUI() {
-  noDupBtn.classList.toggle('on', options.noDup);
-  accidentalBtn.classList.toggle('on', options.accidental);
-  showNoteBtn.classList.toggle('on', options.showNote);
-  autoRollBtn.classList.toggle('on', options.autoRoll);
-  // 시간표시 영역 고정 자리; 옵션 선택될 때 표시. (요구사항 6: 자리는 비워두거나 '-' 표기)
-  // 시간표시 자체는 timerText에서 조절.
-}
-function updateTargetHighlight() {
-  const tblocks = targetsArea.querySelectorAll('.target');
-  tblocks.forEach((el,i)=>{
-    el.style.outline = 'none';
-    if (targetStates[i]) { el.classList.add('correct'); el.classList.remove('wrong'); }
-    else { el.classList.remove('correct','wrong'); }
-    if (i === currentIndex && !targetStates[i]) {
-      el.style.boxShadow = 'inset 0 0 0 3px rgba(0,0,0,0.2)';
-    } else {
-      el.style.boxShadow = 'none';
+    // ====== 오디오 초기화 & 장치 ======
+    async function listDevices() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const inputs = devices.filter(d=>d.kind==='audioinput');
+      deviceSel.innerHTML='';
+      inputs.forEach((d,i)=>{
+        const opt = document.createElement('option');
+        opt.value = d.deviceId; opt.textContent = d.label || `입력장치 ${i+1}`;
+        deviceSel.appendChild(opt);
+      });
     }
-  });
-}
 
-/* ---------- 타이머 로직 (0.1s 단위) ---------- */
-function startTimerIfEnabled(triggeredByButton=false) {
-  // 요구사항 5-1: 버튼을 누를시 시간 표시기능을 시용하지 않음 => 즉, roll 버튼이벤트로 시작된 경우 타이머 비활성
-  if (triggeredByButton) {
-    timer.enabled = false;
-    timerText.textContent = '-';
-    appendLog('롤 버튼으로 시작되어 시간표시 비활성화됨.');
-    return;
-  }
-  timer.enabled = true;
-  timer.running = true;
-  timer.start = performance.now();
-  timer.elapsed = 0;
-  timerText.textContent = '0.0s';
-  if (timer.intervalId) clearInterval(timer.intervalId);
-  timer.intervalId = setInterval(()=>{
-    timer.elapsed = performance.now() - timer.start;
-    timerText.textContent = (timer.elapsed/1000).toFixed(1) + 's';
-  },100);
-}
+    async function startAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-function stopTimer() {
-  if (timer.intervalId) { clearInterval(timer.intervalId); timer.intervalId = null; }
-  timer.running = false;
-  if (timer.enabled) {
-    // leave the elapsed shown
-  } else {
-    timerText.textContent = '-';
-  }
-}
+      // 선택된 장치
+      const deviceId = deviceSel.value || undefined;
+      if (mediaStream) mediaStream.getTracks().forEach(t=>t.stop());
 
-/* ---------- 오디오 처리 및 피치 검출 (오토상관) ---------- */
-function setupAudioInput(selectedDeviceId=null) {
-  stopDetecting();
-  if (audioCtx) {
-    try { audioCtx.close(); } catch(e) {}
-  }
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const constraints = {
-    audio: {
-      deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
-      channelCount:1,
-      sampleRate: audioCtx.sampleRate
-    },
-    video:false
-  };
-  navigator.mediaDevices.getUserMedia(constraints).then(stream=>{
-    mediaStream = stream;
-    sourceNode = audioCtx.createMediaStreamSource(stream);
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 2048;
-    sourceNode.connect(analyser);
-    isDetecting = true;
-    appendLog('오디오 입력 연결됨. 샘플레이트: ' + audioCtx.sampleRate);
-    detectPitchLoop();
-  }).catch(err=>{
-    appendLog('마이크/오디오 접근 오류: ' + err.message);
-  });
-}
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: deviceId ? { exact: deviceId } : undefined,
+          channelCount: { ideal: 1 },
+          sampleRate: { ideal: 48000 },
+          sampleSize: { ideal: 16 },
+          echoCancellation: false, noiseSuppression: false, autoGainControl: false
+        },
+        video: false
+      });
 
-function stopDetecting() {
-  isDetecting = false;
-  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(t=>t.stop());
-    mediaStream = null;
-  }
-}
+      const src = audioCtx.createMediaStreamSource(mediaStream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048; // 타임도메인 버퍼 2048
+      sampleRate = audioCtx.sampleRate;
+      src.connect(analyser);
 
-/* 오토상관 기반 피치 검출 (간단형) */
-function autoCorrelate(buf, sampleRate) {
-  // from Chris Wilson example (modified)
-  let SIZE = buf.length;
-  let rms = 0;
-  for (let i=0;i<SIZE;i++) {
-    let val = buf[i];
-    rms += val*val;
-  }
-  rms = Math.sqrt(rms/SIZE);
-  if (rms < 0.01) return -1; // 너무 약함
-
-  let r1 = 0, r2 = SIZE - 1, thres = 0.2;
-  for (let i=0;i<SIZE/2;i++) {
-    if (Math.abs(buf[i]) < thres) { r1 = i; break; }
-  }
-  for (let i=1;i<SIZE/2;i++) {
-    if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
-  }
-
-  buf = buf.slice(r1, r2);
-  SIZE = buf.length;
-
-  let c = new Array(SIZE).fill(0);
-  for (let i=0;i<SIZE;i++) {
-    for (let j=0;j<SIZE - i;j++) {
-      c[i] = c[i] + buf[j]*buf[j+i];
+      loop();
+      startBtn.disabled = true; stopBtn.disabled = false;
+      setStatus('', '수음 중');
     }
-  }
 
-  let d = 0;
-  while (c[d] > c[d+1]) d++;
-  let maxval = -1, maxpos = -1;
-  for (let i=d; i<SIZE; i++) {
-    if (c[i] > maxval) {
-      maxval = c[i];
-      maxpos = i;
+    function stopAudio() {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (mediaStream) mediaStream.getTracks().forEach(t=>t.stop());
+      mediaStream = null; analyser = null;
+      startBtn.disabled = false; stopBtn.disabled = true;
+      setStatus('', '대기 중');
     }
-  }
-  let T0 = maxpos;
 
-  if (!T0) return -1;
-  // Parabolic interpolation
-  let x1 = c[T0-1], x2 = c[T0], x3 = c[T0+1];
-  let a = (x1 + x3 - 2*x2)/2;
-  let b = (x3 - x1)/2;
-  if (a) T0 = T0 - b/(2*a);
+    // ====== 피치 검출 (자기상관 / ACF) ======
+    const buf = new Float32Array(2048);
+    const acf = new Float32Array(1024);
 
-  const freq = sampleRate / T0;
-  return freq;
-}
+    function computeRMS(arr) {
+      let s=0; for (let i=0;i<arr.length;i++){ const v=arr[i]; s+=v*v; }
+      return Math.sqrt(s/arr.length);
+    }
 
-function detectPitchLoop() {
-  const buf = new Float32Array(analyser.fftSize);
-  function loop() {
-    analyser.getFloatTimeDomainData(buf);
-    const freq = autoCorrelate(buf, audioCtx.sampleRate);
-    if (freq !== -1 && freq !== null) {
-      const note = freqToNote(freq, true);
-      if (note) {
-        const display = semitoneToDisplay(note.semitone, options.accidental);
-        // detected note badge
-        detectedNoteBadge.textContent = display + note.octave;
-        if (options.showNote) document.querySelector('.badge')?.classList.add(''); // no-op to show badge exists
-        // handle comparison to current target
-        handleDetected(display);
+    function detectPitch() {
+      if (!analyser) return { freq: null, rms: 0, lag: null };
+      analyser.getFloatTimeDomainData(buf);
+
+      // 에너지 체크 (무음/잡음 방지)
+      const rms = computeRMS(buf);
+      if (rms < 0.01) return { freq: null, rms, lag: null };
+
+      // DC 오프셋 제거 및 정규화
+      let mean=0; for (let i=0;i<buf.length;i++) mean+=buf[i]; mean/=buf.length;
+      for (let i=0;i<buf.length;i++) buf[i]-=mean;
+
+      // 자기상관
+      const size = acf.length;
+      for (let lag=0; lag<size; lag++) {
+        let sum=0;
+        for (let i=0;i<size;i++) sum += buf[i] * buf[i+lag];
+        acf[lag] = sum;
       }
-    } else {
-      detectedNoteBadge.textContent = '-';
-    }
-    if (isDetecting) rafId = requestAnimationFrame(loop);
-  }
-  loop();
-}
 
-/* ---------- 검출된 음 처리: 타겟과 비교 ---------- */
-function handleDetected(detectedDisplay) {
-  if (!detectedDisplay) return;
-  if (currentIndex >= 6) return;
-  const target = currentTargets[currentIndex];
-  // 비교 로직: 옵션에 따라 비교 방법이 달라짐.
-  // - if accidental option is false, targets are natural; detectedDisplay may be 'C#' etc.
-  // we'll compare only by letter if options.accidental==false (i.e., ignore #/b)
-  let match = false;
-  if (options.accidental) {
-    // allow enharmonic equivalence: map both to semitone index and compare
-    const detSemi = SEMI_NOTES_SHARP.indexOf(detectedDisplay);
-    const tgtSemi = SEMI_NOTES_SHARP.indexOf(target) !== -1 ? SEMI_NOTES_SHARP.indexOf(target) : SEMI_NOTES_SHARP.indexOf(target+''); 
-    match = detSemi === tgtSemi;
-  } else {
-    // compare only natural letters ignoring accidental
-    const detNatural = detectedDisplay[0]; // first char is letter
-    match = detNatural === target[0];
-  }
-
-  // update visual feedback
-  const tblocks = targetsArea.querySelectorAll('.target');
-  const block = tblocks[currentIndex];
-  if (match) {
-    block.classList.add('correct');
-    block.classList.remove('wrong');
-    targetStates[currentIndex] = true;
-    appendLog(`정답: ${detectedDisplay} == ${currentTargets[currentIndex]}`);
-    // 멈출 때까지 색 고정, 다음 인덱스로
-    currentIndex++;
-    updateTargetHighlight();
-    // 모든 음을 맞춘 경우 처리
-    if (currentIndex >= 6) {
-      stopTimer();
-      appendLog('모든 음을 맞춤.');
-      if (options.autoRoll) {
-        // 자동으로 새로운 랜덤 세트 생성 (타이머는 자동으로 동작하도록 startTimerIfEnabled(false) 호출)
-        setTimeout(()=> {
-          generateTargets();
-          startTimerIfEnabled(false);
-          appendLog('오토롤로 새 세트 생성됨.');
-        },400);
+      // 첫번째 피크(0 제외) 탐색
+      let peakIndex = -1; let peakValue = -Infinity;
+      // 대략 80 Hz ~ 1kHz 범위(현악/보컬 기본음)로 제한
+      const minLag = Math.floor(sampleRate/1000);  // 1kHz
+      const maxLag = Math.min(Math.floor(sampleRate/80), size-1); // 80Hz
+      for (let lag=minLag; lag<=maxLag; lag++) {
+        const v = acf[lag];
+        if (v>peakValue) { peakValue=v; peakIndex=lag; }
       }
+
+      if (peakIndex<=0) return { freq:null, rms, lag:null };
+
+      // 패러볼라 보간으로 더 정확한 피크 위치
+      const i = peakIndex;
+      const y1 = acf[i-1] || 0, y2 = acf[i], y3 = acf[i+1] || 0;
+      const denom = (y1 - 2*y2 + y3);
+      let shift = 0;
+      if (denom !== 0) shift = 0.5 * (y1 - y3) / denom; // -0.5..+0.5
+      const trueLag = i + shift;
+
+      const freq = sampleRate / trueLag;
+      return { freq, rms, lag: trueLag };
     }
-  } else {
-    // 틀렸을 때 빨갛게 잠깐 변했다가 돌아옴, 다음으로 넘어가지 않음
-    block.classList.add('wrong');
-    setTimeout(()=> { if (!targetStates[currentIndex]) block.classList.remove('wrong'); },500);
-    appendLog(`오답: ${detectedDisplay} != ${currentTargets[currentIndex]}`);
-  }
-}
 
-/* ---------- 이벤트 바인딩 ---------- */
-noDupBtn.addEventListener('click', ()=>{
-  options.noDup = !options.noDup;
-  updateOptionUI();
-  appendLog('중복금지 ' + (options.noDup ? 'ON' : 'OFF'));
-});
-
-accidentalBtn.addEventListener('click', ()=>{
-  options.accidental = !options.accidental;
-  updateOptionUI();
-  appendLog('플랫 샵표시 ' + (options.accidental ? 'ON' : 'OFF'));
-});
-
-showNoteBtn.addEventListener('click', ()=>{
-  options.showNote = !options.showNote;
-  updateOptionUI();
-  appendLog('음표시 ' + (options.showNote ? 'ON' : 'OFF'));
-});
-
-autoRollBtn.addEventListener('click', ()=>{
-  options.autoRoll = !options.autoRoll;
-  updateOptionUI();
-  appendLog('오토롤 ' + (options.autoRoll ? 'ON' : 'OFF'));
-});
-
-rollBtn.addEventListener('click', ()=>{
-  generateTargets();
-  // roll 버튼으로 시작되었으므로 타이머 비활성(요구사항 5-1)
-  startTimerIfEnabled(true);
-});
-
-/* 타겟 블럭 클릭(테스트용) */
-targetsArea.addEventListener('click', (ev)=>{
-  const t = ev.target.closest('.target');
-  if (!t) return;
-  // 클릭 시 해당 인덱스로 이동 (편의 기능 — 고정 레이아웃 유지)
-  const idx = Number(t.dataset.pos);
-  currentIndex = idx;
-  updateTargetHighlight();
-});
-
-/* ---------- 장치 목록 불러오기 및 선택 ---------- */
-async function populateDevices() {
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const audioInputs = devices.filter(d=>d.kind === 'audioinput');
-    deviceSelect.innerHTML = '';
-    audioInputs.forEach(d=>{
-      const opt = document.createElement('option');
-      opt.value = d.deviceId;
-      opt.textContent = d.label || 'Input ' + (deviceSelect.length+1);
-      deviceSelect.appendChild(opt);
-    });
-    if (audioInputs.length>0) {
-      deviceSelect.value = audioInputs[0].deviceId;
-      deviceId = audioInputs[0].deviceId;
-      setupAudioInput(deviceId);
-    } else {
-      appendLog('오디오 입력 장치가 감지되지 않음.');
+    // 주파수 → 음이름
+    function freqToNoteName(f) {
+      const midi = Math.round(69 + 12*Math.log2(f/440));
+      const name = ALL_NOTE_NAMES[(midi % 12 + 12) % 12];
+      const octave = Math.floor(midi/12) - 1;
+      return { name, octave, midi };
     }
-  } catch(err) {
-    appendLog('장치 조회 오류: ' + err.message);
-  }
-}
 
-deviceSelect.addEventListener('change', (e)=>{
-  deviceId = e.target.value;
-  if (deviceId) setupAudioInput(deviceId);
-});
+    // ====== 메인 루프 ======
+    let smoothFreq = null; // 간단 저역통과로 안정화
+    function loop() {
+      rafId = requestAnimationFrame(loop);
+      const { freq, rms, lag } = detectPitch();
 
-/* ---------- 초기화 ---------- */
-(function init() {
-  updateOptionUI();
-  // 초기 타겟 세트는 E A D G B E (요구사항)
-  currentTargets = ['E','A','D','G','B','E'];
-  const tblocks = targetsArea.querySelectorAll('.target');
-  tblocks.forEach((el,i)=> el.textContent = currentTargets[i]);
-  // 장치 목록 불러오기 (권한 요청 필요)
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    navigator.mediaDevices.getUserMedia({ audio:true }).then(stream=>{
-      // 권한 요청 성공시 장치 목록 로드
-      stream.getTracks().forEach(t=>t.stop());
-      populateDevices();
-    }).catch(err=>{
-      appendLog('오디오 권한 필요: ' + err.message);
+      // 스무딩
+      let shownFreq = null;
+      if (freq && rms > 0.01 && freq >= 60 && freq <= 1200) {
+        smoothFreq = smoothFreq ? (smoothFreq*0.75 + freq*0.25) : freq;
+        shownFreq = smoothFreq;
+      } else {
+        smoothFreq = null;
+      }
+
+      if (shownFreq) {
+        const note = freqToNoteName(shownFreq);
+        const detectedNatural = note.name.replace('♯','#').replace('♭','b').replace(/[#b]$/,''); // 자연음 글자만 추출
+        const correct = currentTarget && (detectedNatural === currentTarget);
+
+        detNoteEl.textContent = `${note.name}${note.octave}`;
+        detFreqEl.textContent = shownFreq.toFixed(2);
+        detRmsEl.textContent = rms.toFixed(3);
+        detLagEl.textContent = lag ? lag.toFixed(1) : '–';
+
+        // 상태/테두리 색상
+        if (currentTarget) setStatus(correct ? 'ok' : 'ng', correct ? '정답' : '오답');
+
+        // 정답이면 자동으로 다음 문제
+        if (correct) {
+          // 짧은 지연 후 새로운 문제
+          const keep = currentTarget; // 현재 표시가 바로 바뀌지 않도록 캡처
+          currentTarget = null; // 중복 처리 방지
+          setTimeout(()=>{ setTarget(pickRandomNatural()); setStatus('', '수음 중'); }, 500);
+        }
+      } else {
+        detFreqEl.textContent = '–';
+        detNoteEl.textContent = '–';
+        detRmsEl.textContent = '–';
+        detLagEl.textContent = '–';
+        if (currentTarget) setStatus('ng','오답');
+      }
+
+      // 모니터 표시 토글
+      monitor.classList.toggle('show', showMonitor.checked);
+    }
+
+    // ====== 이벤트 바인딩 ======
+    startBtn.addEventListener('click', async () => {
+      try {
+        await startAudio();
+      } catch (e) {
+        alert('마이크/오디오 접근 실패: ' + e.message);
+      }
     });
-  } else {
-    appendLog('getUserMedia 미지원 브라우저: 확실하지 않음.');
-  }
-})();
-</script>
+    stopBtn.addEventListener('click', stopAudio);
+    nextBtn.addEventListener('click', () => setTarget(pickRandomNatural()));
+    showMonitor.addEventListener('change', () => { /* 표시만 토글 (루프에서 반영) */ });
+
+    deviceSel.addEventListener('change', async ()=>{
+      if (mediaStream) await startAudio();
+    });
+
+    // 초기화: 권한 안내 & 장치 목록
+    (async () => {
+      try {
+        // 장치 레이블 표시를 위해 한 번 권한 요청 (사용자가 거절해도 목록은 나올 수 있음)
+        await navigator.mediaDevices.getUserMedia({ audio:true, video:false }).then(s=>s.getTracks().forEach(t=>t.stop())).catch(()=>{});
+      } finally {
+        await listDevices();
+        setTarget(pickRandomNatural());
+      }
+    })();
+  </script>
 </body>
 </html>
