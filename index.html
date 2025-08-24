@@ -1,156 +1,155 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>기타 음 감지</title>
-<style>
-  body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #111;
-    color: #fff;
-  }
-  #note {
-    font-size: 120px;
-    font-weight: bold;
-    margin-bottom: 20px;
-  }
-  #detected {
-    font-size: 24px;
-    color: #0f0;
-    background: #222;
-    padding: 10px 20px;
-    border-radius: 12px;
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>기타 음 인식</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: #111;
+      color: #fff;
+      font-family: sans-serif;
+    }
+    #correctNote {
+      font-size: 5em;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    #detectedNote {
+      font-size: 2em;
+      opacity: 0.7;
+    }
+    #overlay {
+      position: absolute;
+      top:0; left:0; right:0; bottom:0;
+      background:#000;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      color:#fff;
+      font-size:2em;
+    }
+  </style>
 </head>
 <body>
-  <div id="note">—</div>
-  <div id="detected">Detected: —</div>
+  <div id="overlay">탭하여 시작</div>
+  <div id="correctNote">--</div>
+  <div id="detectedNote">--</div>
 
-<script>
-const noteElem = document.getElementById("note");
-const detectedElem = document.getElementById("detected");
+  <script>
+    const noteStrings = ["C", "C#", "D", "D#", "E", "F", 
+                         "F#", "G", "G#", "A", "A#", "B"];
 
-const noteStrings = ["C", "C#", "D", "D#", "E", "F",
-                     "F#", "G", "G#", "A", "A#", "B"];
+    let audioContext, analyser, dataArray;
+    let detectedNoteElem = document.getElementById("detectedNote");
+    let correctNoteElem = document.getElementById("correctNote");
+    let overlay = document.getElementById("overlay");
 
-// 🎵 랜덤 음 생성
-function randomNote() {
-  return noteStrings[Math.floor(Math.random() * noteStrings.length)];
-}
-
-let audioContext, analyser, buf;
-let currentNote = null;
-let randomDisplayed = randomNote();
-
-// ✅ 지속 감지 관련 변수
-let lastNote = null;
-let stableNote = null;
-let stableStart = 0;
-const requiredDuration = 1000; // ms (기본값 1초)  <-- 여기서 지속시간 조정
-
-// 🎵 오토코릴레이션 (Pitch detection)
-function autoCorrelate(buf, sampleRate) {
-  let SIZE = buf.length;
-  let rms = 0;
-  for (let i = 0; i < SIZE; i++) {
-    let val = buf[i];
-    rms += val * val;
-  }
-  rms = Math.sqrt(rms / SIZE);
-  if (rms < 0.0008) return -1;
-
-  let r1 = 0, r2 = SIZE - 1, thres = 0.2;
-  for (let i = 0; i < SIZE / 2; i++) {
-    if (Math.abs(buf[i]) < thres) { r1 = i; break; }
-  }
-  for (let i = 1; i < SIZE / 2; i++) {
-    if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
-  }
-
-  buf = buf.slice(r1, r2);
-  SIZE = buf.length;
-
-  let c = new Array(SIZE).fill(0);
-  for (let i = 0; i < SIZE; i++)
-    for (let j = 0; j < SIZE - i; j++)
-      c[i] = c[i] + buf[j] * buf[j+i];
-
-  let d = 0; while (c[d] > c[d+1]) d++;
-  let maxval = -1, maxpos = -1;
-  for (let i = d; i < SIZE; i++) {
-    if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
-  }
-  let T0 = maxpos;
-  return sampleRate / T0;
-}
-
-function noteFromPitch(freq) {
-  const A4 = 440;
-  const noteNum = 12 * (Math.log(freq / A4) / Math.log(2));
-  return Math.round(noteNum) + 69;
-}
-
-function updatePitch() {
-  analyser.getFloatTimeDomainData(buf);
-  const ac = autoCorrelate(buf, audioContext.sampleRate);
-
-  if (ac === -1) {
-    requestAnimationFrame(updatePitch);
-    return;
-  }
-
-  const pitch = ac;
-  const note = noteFromPitch(pitch);
-  const noteName = noteStrings[note % 12];
-
-  const now = performance.now();
-
-  // 🎵 지속 시간 판정 로직
-  if (noteName === lastNote) {
-    if (now - stableStart >= requiredDuration) {
-      stableNote = noteName; // ✅ 1초 이상 유지되면 확정
+    // 랜덤 음 생성
+    function getRandomNote() {
+      return noteStrings[Math.floor(Math.random() * noteStrings.length)];
     }
-  } else {
-    lastNote = noteName;
-    stableStart = now;
-  }
 
-  // 확정된 음이 있으면 출력
-  if (stableNote) {
-    detectedElem.textContent = "Detected: " + stableNote;
-
-    if (stableNote === randomDisplayed) {
-      // 같으면 새로운 랜덤 음
-      let newRandom;
-      do {
-        newRandom = randomNote();
-      } while (newRandom === stableNote);
-      randomDisplayed = newRandom;
+    // 주파수 → MIDI → 음 이름
+    function freqToNote(freq) {
+      const A4 = 440;
+      const noteNumber = 12 * (Math.log(freq / A4) / Math.log(2)) + 69;
+      return Math.round(noteNumber);
     }
-    noteElem.textContent = randomDisplayed;
-  }
+    function noteToString(note) {
+      return noteStrings[(note % 12 + 12) % 12];
+    }
 
-  requestAnimationFrame(updatePitch);
-}
+    // pitch detection (autocorrelation)
+    function autoCorrelate(buf, sampleRate) {
+      let SIZE = buf.length;
+      let rms = 0;
+      for (let i = 0; i < SIZE; i++) {
+        let val = buf[i] / 128 - 1;
+        rms += val * val;
+      }
+      rms = Math.sqrt(rms / SIZE);
+      if (rms < 0.01) return -1;
 
-async function init() {
-  audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  analyser = audioContext.createAnalyser();
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const source = audioContext.createMediaStreamSource(stream);
-  source.connect(analyser);
-  buf = new Float32Array(analyser.fftSize);
-  updatePitch();
-}
-init();
-</script>
+      let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+      for (let i = 0; i < SIZE / 2; i++) {
+        if (Math.abs(buf[i] - 128) / 128 > thres) { r1 = i; break; }
+      }
+      for (let i = 1; i < SIZE / 2; i++) {
+        if (Math.abs(buf[SIZE - i] - 128) / 128 > thres) { r2 = SIZE - i; break; }
+      }
+
+      buf = buf.slice(r1, r2);
+      SIZE = buf.length;
+
+      let c = new Array(SIZE).fill(0);
+      for (let i = 0; i < SIZE; i++)
+        for (let j = 0; j < SIZE - i; j++)
+          c[i] = c[i] + (buf[j] - 128) * (buf[j+i] - 128);
+
+      let d = 0; while (c[d] > c[d+1]) d++;
+      let maxval=-1, maxpos=-1;
+      for (let i = d; i < SIZE; i++) {
+        if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+      }
+      let T0 = maxpos;
+
+      return sampleRate / T0;
+    }
+
+    let lastDetectedNote = null;
+    let noteStableSince = 0;
+    let correctNote = "--";
+
+    // *** 여기서 정답으로 인정할 최소 유지 시간 설정 (기본: 40초) ***
+    const CORRECT_NOTE_HOLD_TIME = 40000; // 40초 (ms)
+
+    function updatePitch() {
+      analyser.getByteTimeDomainData(dataArray);
+      let pitch = autoCorrelate(dataArray, audioContext.sampleRate);
+      if (pitch !== -1) {
+        let midiNote = freqToNote(pitch);
+        let noteName = noteToString(midiNote);
+
+        // 실시간 검출 음 표시
+        detectedNoteElem.textContent = noteName;
+
+        // 정답 판정 로직
+        if (noteName === lastDetectedNote) {
+          if (Date.now() - noteStableSince > CORRECT_NOTE_HOLD_TIME && noteName !== correctNote) {
+            // 랜덤 음 생성 (단, 현재 음과 옥타브 관계여도 같은 이름이면 다시 뽑기)
+            let newNote;
+            do {
+              newNote = getRandomNote();
+            } while (newNote === noteName);
+            correctNote = newNote;
+            correctNoteElem.textContent = correctNote;
+          }
+        } else {
+          lastDetectedNote = noteName;
+          noteStableSince = Date.now();
+        }
+      }
+      requestAnimationFrame(updatePitch);
+    }
+
+    overlay.onclick = async () => {
+      overlay.style.display = "none";
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const source = audioContext.createMediaStreamSource(stream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      dataArray = new Uint8Array(analyser.fftSize);
+      source.connect(analyser);
+      updatePitch();
+    }
+  </script>
 </body>
 </html>
