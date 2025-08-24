@@ -2,154 +2,113 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>기타 음 인식</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>기타 음 맞추기</title>
   <style>
     body {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
       background: #111;
       color: #fff;
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
     }
-    #correctNote {
-      font-size: 5em;
+    #targetNote {
+      font-size: 80px;
       font-weight: bold;
-      margin-bottom: 20px;
+      margin-bottom: 40px;
+      color: #4cafef;
     }
     #detectedNote {
-      font-size: 2em;
-      opacity: 0.7;
-    }
-    #overlay {
-      position: absolute;
-      top:0; left:0; right:0; bottom:0;
-      background:#000;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      color:#fff;
-      font-size:2em;
+      font-size: 30px;
+      color: #aaa;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <div id="overlay">탭하여 시작</div>
-  <div id="correctNote">--</div>
-  <div id="detectedNote">--</div>
+  <div id="targetNote">-</div>
+  <div id="detectedNote">🎸 감지된 음: -</div>
 
+  <script src="https://cdn.jsdelivr.net/npm/pitchy@4.0.2/dist/pitchy.umd.js"></script>
   <script>
-    const noteStrings = ["C", "C#", "D", "D#", "E", "F", 
-                         "F#", "G", "G#", "A", "A#", "B"];
+    const notes = [
+      "C", "C#", "D", "D#", "E", "F",
+      "F#", "G", "G#", "A", "A#", "B"
+    ];
 
-    let audioContext, analyser, dataArray;
-    let detectedNoteElem = document.getElementById("detectedNote");
-    let correctNoteElem = document.getElementById("correctNote");
-    let overlay = document.getElementById("overlay");
-
-    // 랜덤 음 생성
-    function getRandomNote() {
-      return noteStrings[Math.floor(Math.random() * noteStrings.length)];
-    }
-
-    // 주파수 → MIDI → 음 이름
-    function freqToNote(freq) {
+    function getNoteName(frequency) {
+      if (frequency <= 0) return null;
       const A4 = 440;
-      const noteNumber = 12 * (Math.log(freq / A4) / Math.log(2)) + 69;
-      return Math.round(noteNumber);
-    }
-    function noteToString(note) {
-      return noteStrings[(note % 12 + 12) % 12];
+      const noteIndex = Math.round(12 * Math.log2(frequency / A4)) + 57;
+      return notes[(noteIndex % 12 + 12) % 12]; // 옥타브는 무시
     }
 
-    // pitch detection (autocorrelation)
-    function autoCorrelate(buf, sampleRate) {
-      let SIZE = buf.length;
-      let rms = 0;
-      for (let i = 0; i < SIZE; i++) {
-        let val = buf[i] / 128 - 1;
-        rms += val * val;
-      }
-      rms = Math.sqrt(rms / SIZE);
-      if (rms < 0.01) return -1;
-
-      let r1 = 0, r2 = SIZE - 1, thres = 0.2;
-      for (let i = 0; i < SIZE / 2; i++) {
-        if (Math.abs(buf[i] - 128) / 128 > thres) { r1 = i; break; }
-      }
-      for (let i = 1; i < SIZE / 2; i++) {
-        if (Math.abs(buf[SIZE - i] - 128) / 128 > thres) { r2 = SIZE - i; break; }
-      }
-
-      buf = buf.slice(r1, r2);
-      SIZE = buf.length;
-
-      let c = new Array(SIZE).fill(0);
-      for (let i = 0; i < SIZE; i++)
-        for (let j = 0; j < SIZE - i; j++)
-          c[i] = c[i] + (buf[j] - 128) * (buf[j+i] - 128);
-
-      let d = 0; while (c[d] > c[d+1]) d++;
-      let maxval=-1, maxpos=-1;
-      for (let i = d; i < SIZE; i++) {
-        if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
-      }
-      let T0 = maxpos;
-
-      return sampleRate / T0;
+    function getRandomNote() {
+      return notes[Math.floor(Math.random() * notes.length)];
     }
 
+    let targetNote = null;
     let lastDetectedNote = null;
-    let noteStableSince = 0;
-    let correctNote = "--";
+    let noteStartTime = null;
 
-    // *** 여기서 정답으로 인정할 최소 유지 시간 설정 (기본: 40초) ***
-    const CORRECT_NOTE_HOLD_TIME = 40000; // 40초 (ms)
+    // ✅ 앱 시작 시 최초 랜덤 음 설정
+    targetNote = getRandomNote();
+    document.getElementById("targetNote").innerText = targetNote;
 
-    function updatePitch() {
-      analyser.getByteTimeDomainData(dataArray);
-      let pitch = autoCorrelate(dataArray, audioContext.sampleRate);
-      if (pitch !== -1) {
-        let midiNote = freqToNote(pitch);
-        let noteName = noteToString(midiNote);
-
-        // 실시간 검출 음 표시
-        detectedNoteElem.textContent = noteName;
-
-        // 정답 판정 로직
-        if (noteName === lastDetectedNote) {
-          if (Date.now() - noteStableSince > CORRECT_NOTE_HOLD_TIME && noteName !== correctNote) {
-            // 랜덤 음 생성 (단, 현재 음과 옥타브 관계여도 같은 이름이면 다시 뽑기)
-            let newNote;
-            do {
-              newNote = getRandomNote();
-            } while (newNote === noteName);
-            correctNote = newNote;
-            correctNoteElem.textContent = correctNote;
-          }
-        } else {
-          lastDetectedNote = noteName;
-          noteStableSince = Date.now();
-        }
-      }
-      requestAnimationFrame(updatePitch);
-    }
-
-    overlay.onclick = async () => {
-      overlay.style.display = "none";
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    async function init() {
+      const audioContext = new AudioContext();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const source = audioContext.createMediaStreamSource(stream);
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 2048;
-      dataArray = new Uint8Array(analyser.fftSize);
+      const analyser = audioContext.createAnalyser();
       source.connect(analyser);
-      updatePitch();
+
+      const detector = Pitchy.createDetector(analyser, audioContext.sampleRate);
+      const input = new Float32Array(detector.inputLength);
+
+      async function detectPitch() {
+        analyser.getFloatTimeDomainData(input);
+        const [pitch, clarity] = detector.findPitch(input);
+
+        if (clarity > 0.8) { // 노이즈 제거, 민감도
+          const noteName = getNoteName(pitch);
+
+          if (noteName) {
+            // 항상 감지된 음 표시
+            document.getElementById("detectedNote").innerText = "🎸 감지된 음: " + noteName;
+
+            // 정답 로직
+            if (noteName === targetNote) {
+              if (lastDetectedNote !== noteName) {
+                lastDetectedNote = noteName;
+                noteStartTime = Date.now();
+              } else {
+                const elapsed = (Date.now() - noteStartTime) / 1000;
+                // ✅ 40초 이상 유지해야 정답 인정
+                if (elapsed >= 40) {
+                  let newNote;
+                  do {
+                    newNote = getRandomNote();
+                  } while (newNote === targetNote);
+                  targetNote = newNote;
+                  document.getElementById("targetNote").innerText = targetNote;
+                  lastDetectedNote = null;
+                  noteStartTime = null;
+                }
+              }
+            } else {
+              lastDetectedNote = noteName;
+              noteStartTime = Date.now();
+            }
+          }
+        }
+
+        requestAnimationFrame(detectPitch);
+      }
+
+      detectPitch();
     }
+
+    init();
   </script>
 </body>
 </html>
