@@ -51,7 +51,7 @@
       // 기본 피치 검출 (자동상관법)
       const SIZE = buf.length;
       const rms = Math.sqrt(buf.reduce((a,b)=>a+b*b,0)/SIZE);
-      if (rms < 0.0015) return -1; // 노이즈게이트 낮을 시 수음 능력 좋아짐
+      if (rms < 0.005) return -1; // 노이즈게이트 낮을 시 수음 능력 좋아짐
       
       let r1=0, r2=SIZE-1, thres=0.2;
       for (let i=0; i<SIZE/2; i++) {
@@ -118,4 +118,5 @@
   </script>
 </body>
 </html>
+
 
