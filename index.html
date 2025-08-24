@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>기타 음 검출 연습</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>기타 음 감지</title>
 <style>
   body {
     display: flex;
@@ -12,50 +12,60 @@
     justify-content: center;
     height: 100vh;
     margin: 0;
+    font-family: Arial, sans-serif;
     background: #111;
     color: #fff;
-    font-family: sans-serif;
   }
-  #randomNote {
+  #note {
     font-size: 120px;
     font-weight: bold;
-    margin-bottom: 40px;
+    margin-bottom: 20px;
   }
-  #detectedNote {
-    font-size: 28px;
-    background: #333;
+  #detected {
+    font-size: 24px;
+    color: #0f0;
+    background: #222;
     padding: 10px 20px;
     border-radius: 12px;
   }
 </style>
 </head>
 <body>
-  <div id="randomNote">—</div>
-  <div id="detectedNote">—</div>
+  <div id="note">—</div>
+  <div id="detected">Detected: —</div>
 
 <script>
-const noteStrings = ["C", "C#", "D", "D#", "E", "F", 
+const noteElem = document.getElementById("note");
+const detectedElem = document.getElementById("detected");
+
+const noteStrings = ["C", "C#", "D", "D#", "E", "F",
                      "F#", "G", "G#", "A", "A#", "B"];
 
-let audioCtx, analyser, buf, sourceNode;
-let randomNoteElem = document.getElementById("randomNote");
-let detectedNoteElem = document.getElementById("detectedNote");
-
-function noteFromPitch(frequency) {
-  let noteNum = 12 * (Math.log(frequency / 440) / Math.log(2));
-  return Math.round(noteNum) + 69;
+// 🎵 랜덤 음 생성
+function randomNote() {
+  return noteStrings[Math.floor(Math.random() * noteStrings.length)];
 }
 
+let audioContext, analyser, buf;
+let currentNote = null;
+let randomDisplayed = randomNote();
+
+// ✅ 지속 감지 관련 변수
+let lastNote = null;
+let stableNote = null;
+let stableStart = 0;
+const requiredDuration = 1000; // ms (기본값 1초)  <-- 여기서 지속시간 조정
+
+// 🎵 오토코릴레이션 (Pitch detection)
 function autoCorrelate(buf, sampleRate) {
   let SIZE = buf.length;
   let rms = 0;
-
   for (let i = 0; i < SIZE; i++) {
     let val = buf[i];
     rms += val * val;
   }
   rms = Math.sqrt(rms / SIZE);
-  if (rms < 0.0008) return -1; // 노이즈 게이트
+  if (rms < 0.0008) return -1;
 
   let r1 = 0, r2 = SIZE - 1, thres = 0.2;
   for (let i = 0; i < SIZE / 2; i++) {
@@ -69,66 +79,77 @@ function autoCorrelate(buf, sampleRate) {
   SIZE = buf.length;
 
   let c = new Array(SIZE).fill(0);
-  for (let i = 0; i < SIZE; i++) {
-    for (let j = 0; j < SIZE - i; j++) {
+  for (let i = 0; i < SIZE; i++)
+    for (let j = 0; j < SIZE - i; j++)
       c[i] = c[i] + buf[j] * buf[j+i];
-    }
-  }
 
   let d = 0; while (c[d] > c[d+1]) d++;
   let maxval = -1, maxpos = -1;
   for (let i = d; i < SIZE; i++) {
-    if (c[i] > maxval) {
-      maxval = c[i]; maxpos = i;
-    }
+    if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
   }
   let T0 = maxpos;
   return sampleRate / T0;
 }
 
-function pickRandomNote(excludeNote) {
-  let available = noteStrings.filter(n => n !== excludeNote);
-  return available[Math.floor(Math.random() * available.length)];
+function noteFromPitch(freq) {
+  const A4 = 440;
+  const noteNum = 12 * (Math.log(freq / A4) / Math.log(2));
+  return Math.round(noteNum) + 69;
 }
 
 function updatePitch() {
   analyser.getFloatTimeDomainData(buf);
-  const ac = autoCorrelate(buf, audioCtx.sampleRate);
+  const ac = autoCorrelate(buf, audioContext.sampleRate);
+
   if (ac === -1) {
-    detectedNoteElem.textContent = "—";
-    return requestAnimationFrame(updatePitch);
+    requestAnimationFrame(updatePitch);
+    return;
   }
 
   const pitch = ac;
   const note = noteFromPitch(pitch);
   const noteName = noteStrings[note % 12];
 
-  // 실제 수음된 음 표시
-  detectedNoteElem.textContent = "수음된 음: " + noteName;
+  const now = performance.now();
 
-  // 랜덤 음 표시 (수음 음과 같으면 다시 뽑기)
-  if (randomNoteElem.textContent === "—" || randomNoteElem.dataset.lockedNote === noteName) {
-    let rnd = pickRandomNote(noteName);
-    randomNoteElem.textContent = rnd;
-    randomNoteElem.dataset.lockedNote = rnd;
+  // 🎵 지속 시간 판정 로직
+  if (noteName === lastNote) {
+    if (now - stableStart >= requiredDuration) {
+      stableNote = noteName; // ✅ 1초 이상 유지되면 확정
+    }
+  } else {
+    lastNote = noteName;
+    stableStart = now;
+  }
+
+  // 확정된 음이 있으면 출력
+  if (stableNote) {
+    detectedElem.textContent = "Detected: " + stableNote;
+
+    if (stableNote === randomDisplayed) {
+      // 같으면 새로운 랜덤 음
+      let newRandom;
+      do {
+        newRandom = randomNote();
+      } while (newRandom === stableNote);
+      randomDisplayed = newRandom;
+    }
+    noteElem.textContent = randomDisplayed;
   }
 
   requestAnimationFrame(updatePitch);
 }
 
 async function init() {
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 2048;
-  buf = new Float32Array(analyser.fftSize);
-
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioContext.createAnalyser();
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  sourceNode = audioCtx.createMediaStreamSource(stream);
-  sourceNode.connect(analyser);
-
+  const source = audioContext.createMediaStreamSource(stream);
+  source.connect(analyser);
+  buf = new Float32Array(analyser.fftSize);
   updatePitch();
 }
-
 init();
 </script>
 </body>
