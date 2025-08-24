@@ -1,115 +1,162 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>기타 음 맞추기</title>
-  <style>
-    body {
-      background: #111;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 40px;
-    }
-    #targetNote {
-      font-size: 80px;
-      font-weight: bold;
-      margin-bottom: 40px;
-      color: #4cafef;
-    }
-    #detectedNote {
-      font-size: 30px;
-      color: #aaa;
-      margin-top: 20px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>기타 음 인식</title>
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background: #111;
+    color: #fff;
+    font-family: sans-serif;
+  }
+  #correctNote {
+    font-size: 5em;
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
+  #detectedNote {
+    font-size: 2em;
+    opacity: 0.7;
+  }
+  #overlay {
+    position: absolute;
+    top:0; left:0; right:0; bottom:0;
+    background:#000;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    color:#fff;
+    font-size:2em;
+  }
+</style>
 </head>
 <body>
-  <div id="targetNote">-</div>
-  <div id="detectedNote">🎸 감지된 음: -</div>
+<div id="overlay">탭하여 시작</div>
+<div id="correctNote">--</div>
+<div id="detectedNote">--</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/pitchy@4.0.2/dist/pitchy.umd.js"></script>
-  <script>
-    const notes = [
-      "C", "C#", "D", "D#", "E", "F",
-      "F#", "G", "G#", "A", "A#", "B"
-    ];
+<script>
+const noteStrings = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
-    function getNoteName(frequency) {
-      if (frequency <= 0) return null;
-      const A4 = 440;
-      const noteIndex = Math.round(12 * Math.log2(frequency / A4)) + 57;
-      return notes[(noteIndex % 12 + 12) % 12]; // 옥타브는 무시
+let audioContext, analyser, dataArray;
+const detectedNoteElem = document.getElementById("detectedNote");
+const correctNoteElem  = document.getElementById("correctNote");
+const overlay          = document.getElementById("overlay");
+
+// 랜덤 음 생성
+function getRandomNote() {
+  return noteStrings[Math.floor(Math.random()*noteStrings.length)];
+}
+
+// 주파수 → MIDI → 음 이름
+function freqToNote(freq) {
+  const A4 = 440;
+  const noteNumber = 12 * (Math.log(freq/A4)/Math.log(2)) + 69;
+  return Math.round(noteNumber);
+}
+function noteToString(note) {
+  return noteStrings[(note%12+12)%12];
+}
+
+// 오토코릴레이션
+function autoCorrelate(buf,sampleRate){
+  let SIZE=buf.length;
+
+  // ---- 노이즈 게이트 (민감도) ----
+  const NOISE_GATE=0.0008; // <-- 여기서 민감도 조정 가능
+  // ------------------------------
+
+  let rms=0;
+  for(let i=0;i<SIZE;i++){
+    const v=buf[i]/128-1;
+    rms+=v*v;
+  }
+  rms=Math.sqrt(rms/SIZE);
+  if(rms<NOISE_GATE) return -1;
+
+  let r1=0,r2=SIZE-1,thres=0.2;
+  for(let i=0;i<SIZE/2;i++){if(Math.abs(buf[i]/128-1)<thres){r1=i;break;}}
+  for(let i=1;i<SIZE/2;i++){if(Math.abs(buf[SIZE-i]/128-1)<thres){r2=SIZE-i;break;}}
+  buf=buf.slice(r1,r2);
+  SIZE=buf.length;
+
+  const c=new Array(SIZE).fill(0);
+  for(let i=0;i<SIZE;i++)
+    for(let j=0;j<SIZE-i;j++){
+      const a=buf[j]/128-1;
+      const b=buf[j+i]/128-1;
+      c[i]+=a*b;
     }
 
-    function getRandomNote() {
-      return notes[Math.floor(Math.random() * notes.length)];
-    }
+  let d=0; while(d+1<SIZE&&c[d]>c[d+1])d++;
+  let maxval=-1,maxpos=-1;
+  for(let i=d;i<SIZE;i++){if(c[i]>maxval){maxval=c[i]; maxpos=i;}}
+  if(maxpos<=0) return -1;
+  return sampleRate/maxpos;
+}
 
-    let targetNote = null;
-    let lastDetectedNote = null;
-    let noteStartTime = null;
+let lastDetectedNote=null;
+let noteStableSince=0;
+let correctNote="--";
 
-    // ✅ 앱 시작 시 최초 랜덤 음 설정
-    targetNote = getRandomNote();
-    document.getElementById("targetNote").innerText = targetNote;
+// ---- 정답 유지 시간 (밀리초) ----
+const CORRECT_NOTE_HOLD_TIME=40000; // 40초
+// ---------------------------------
 
-    async function init() {
-      const audioContext = new AudioContext();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      source.connect(analyser);
+// ✅ 앱 시작 시 최초 랜덤 음 표시
+(function initFirstRandom(){
+  correctNote=getRandomNote();
+  correctNoteElem.textContent=correctNote;
+})();
 
-      const detector = Pitchy.createDetector(analyser, audioContext.sampleRate);
-      const input = new Float32Array(detector.inputLength);
+function updatePitch(){
+  analyser.getByteTimeDomainData(dataArray);
+  const pitch=autoCorrelate(dataArray,audioContext.sampleRate);
 
-      async function detectPitch() {
-        analyser.getFloatTimeDomainData(input);
-        const [pitch, clarity] = detector.findPitch(input);
+  if(pitch!==-1){
+    const midiNote=freqToNote(pitch);
+    const noteName=noteToString(midiNote);
 
-        if (clarity > 0.8) { // 노이즈 제거, 민감도
-          const noteName = getNoteName(pitch);
+    // 항상 감지된 음 표시
+    detectedNoteElem.textContent=noteName;
 
-          if (noteName) {
-            // 항상 감지된 음 표시
-            document.getElementById("detectedNote").innerText = "🎸 감지된 음: " + noteName;
-
-            // 정답 로직
-            if (noteName === targetNote) {
-              if (lastDetectedNote !== noteName) {
-                lastDetectedNote = noteName;
-                noteStartTime = Date.now();
-              } else {
-                const elapsed = (Date.now() - noteStartTime) / 1000;
-                // ✅ 40초 이상 유지해야 정답 인정
-                if (elapsed >= 40) {
-                  let newNote;
-                  do {
-                    newNote = getRandomNote();
-                  } while (newNote === targetNote);
-                  targetNote = newNote;
-                  document.getElementById("targetNote").innerText = targetNote;
-                  lastDetectedNote = null;
-                  noteStartTime = null;
-                }
-              }
-            } else {
-              lastDetectedNote = noteName;
-              noteStartTime = Date.now();
-            }
-          }
-        }
-
-        requestAnimationFrame(detectPitch);
+    // 같은 음 유지 확인
+    if(noteName===lastDetectedNote){
+      // 정답 음과 같은 음이 40초 이상 유지되면 새로운 랜덤 음으로 교체
+      if(noteName===correctNote && (Date.now()-noteStableSince)>CORRECT_NOTE_HOLD_TIME){
+        let next;
+        do{next=getRandomNote();}while(next===noteName);
+        correctNote=next;
+        correctNoteElem.textContent=correctNote;
+        noteStableSince=Date.now();
       }
-
-      detectPitch();
+    }else{
+      lastDetectedNote=noteName;
+      noteStableSince=Date.now();
     }
+  }
 
-    init();
-  </script>
+  requestAnimationFrame(updatePitch);
+}
+
+overlay.onclick=async()=>{
+  overlay.style.display="none";
+  audioContext=new (window.AudioContext||window.webkitAudioContext)();
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  const source=audioContext.createMediaStreamSource(stream);
+  analyser=audioContext.createAnalyser();
+  analyser.fftSize=2048;
+  dataArray=new Uint8Array(analyser.fftSize);
+  source.connect(analyser);
+  updatePitch();
+};
+</script>
 </body>
 </html>
-
