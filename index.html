@@ -1,379 +1,120 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>기타 지판 음 인식</title>
-<style>
-  :root {
-    --bg: #0b0c10;
-    --card: #12141a;
-    --muted: #7f8c8d;
-    --text: #e8ecf1;
-    --accent: #4f91ff;
-    --good: #22c55e;
-    --warn: #f59e0b;
-    --bad: #ef4444;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin:0; height:100%; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif; }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; display:flex; flex-direction:column; gap:16px; }
-  header { display:grid; grid-template-columns: 1fr auto; align-items:center; gap:12px; }
-  h1 { font-size: 20px; margin:0; font-weight:700; letter-spacing:0.2px; }
-  .card { background: var(--card); border: 1px solid #1f2430; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
-  .top { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; padding:12px; }
-  .metric { padding: 14px 16px; border-radius: 12px; background: #0f1220; border: 1px solid #1f2430; }
-  .metric .label { color: var(--muted); font-size:12px; margin-bottom:6px; }
-  .metric .value { font-size: 22px; font-weight: 800; letter-spacing: 0.3px; }
-  .value.small { font-size: 18px; }
-  .detune { font-variant-numeric: tabular-nums; }
-  .controls { display:flex; gap:10px; align-items:center; justify-content:flex-end; }
-  select, button { background:#0f1220; color:var(--text); border:1px solid #1f2430; padding:10px 12px; border-radius:10px; font-size:14px; }
-  select:disabled { opacity:.6; }
-  button.primary { background: var(--accent); border-color: var(--accent); color:white; }
-  .fretboard { padding: 8px 12px 16px; }
-  .fret-info { display:flex; gap:12px; align-items:center; color:var(--muted); font-size:12px; padding: 6px 6px 10px; }
-  .grid { 
-    --frets: 19; /* 0~18 프렛 표시 */
-    display:grid; grid-template-columns: 44px repeat(var(--frets), minmax(46px, 1fr)); gap:4px; align-items:stretch; 
-  }
-  .cell { position:relative; padding:8px 6px; border-radius:10px; border:1px dashed #222838; background:#0c0f1b; min-height:40px; display:flex; align-items:center; justify-content:center; text-align:center; }
-  .cell.muted { background: #0a0d17; color: #5e6a86; }
-  .cell.string { font-weight:700; letter-spacing:0.3px; background:#0a0d17; border-style:solid; }
-  .cell.fret { opacity:.8; }
-  .cell.active { outline: 3px solid var(--accent); background: #0e1630; box-shadow: 0 0 0 4px rgba(79,145,255,0.15) inset; }
-  .cell.active.best { outline-color: var(--good); background:#0f1f18; box-shadow: 0 0 0 4px rgba(34,197,94,0.15) inset; }
-  .note-tag { position:absolute; bottom:4px; right:6px; font-size:10px; color:#9aa6b2; }
-  .fret-num { position:absolute; top:4px; right:6px; font-size:10px; color:#9aa6b2; }
-  .legend { display:flex; gap:10px; align-items:center; font-size:12px; color:var(--muted); padding:8px 12px 14px; }
-  .dot { width:12px; height:12px; border-radius:999px; border:2px solid transparent; }
-  .dot.best { background: var(--good); }
-  .dot.active { background: var(--accent); }
-  .rmsbar { height: 8px; background:#0f1220; border:1px solid #1f2430; border-radius:999px; overflow:hidden; }
-  .rmsfill { height:100%; width:0%; background: var(--accent); }
-  .overlay {
-    position: fixed; inset:0; background: rgba(6,8,12,0.85); backdrop-filter: blur(2px);
-    display:flex; align-items:center; justify-content:center; z-index: 1000; 
-  }
-  .overlay .inner { max-width: 520px; background: #0e1220; border:1px solid #1f2430; border-radius: 18px; padding: 22px; text-align:center; }
-  .overlay h2 { margin:0 0 8px 0; font-size:20px; }
-  .overlay p { margin:0 0 16px 0; color:var(--muted); }
-  .hint { font-size:11px; color:var(--muted); padding: 6px 0 0; }
-  @media (max-width: 820px) {
-    .top { grid-template-columns: repeat(2, 1fr);} 
-    .grid { --frets: 15; }
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>Guitar Note Detector</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #111;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: Arial, sans-serif;
+    }
+    #note {
+      font-size: 120px;
+      font-weight: bold;
+      text-align: center;
+    }
+    #startOverlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-  <div id="overlay" class="overlay" role="dialog" aria-modal="true">
-    <div class="inner">
-      <h2>탭하여 시작</h2>
-      <p>모바일(Safari 포함)과 데스크탑 브라우저에서 마이크/오디오 인터페이스 입력을 활성화합니다.</p>
-      <div style="display:flex; gap:8px; justify-content:center;">
-        <button id="startBtn" class="primary">오디오 캡처 시작</button>
-      </div>
-      <div class="hint">iOS는 보안정책상 사용자 동작 후에만 오디오가 시작됩니다.</div>
-    </div>
-  </div>
+  <div id="note">—</div>
+  <div id="startOverlay">탭하여 시작</div>
 
-  <div class="wrap">
-    <header>
-      <h1>🎸 기타 지판 음 인식</h1>
-      <div class="controls">
-        <label for="deviceSelect" class="visually-hidden" style="position:absolute;left:-10000px;">입력 선택</label>
-        <select id="deviceSelect" disabled></select>
-        <button id="stopBtn">중지</button>
-      </div>
-    </header>
+  <script>
+    const noteElem = document.getElementById("note");
+    const startOverlay = document.getElementById("startOverlay");
 
-    <section class="card top">
-      <div class="metric"><div class="label">검출 주파수</div><div class="value" id="freq">—</div></div>
-      <div class="metric"><div class="label">추정 음</div><div class="value" id="note">—</div></div>
-      <div class="metric"><div class="label">센트 오차</div><div class="value detune" id="cents">—</div></div>
-      <div class="metric"><div class="label">최적 포지션</div><div class="value small" id="bestPos">—</div></div>
-      <div style="grid-column: 1 / -1;" class="rmsbar"><div id="rmsFill" class="rmsfill"></div></div>
-    </section>
+    const noteStrings = ["C", "C#", "D", "D#", "E", "F", 
+                         "F#", "G", "G#", "A", "A#", "B"];
 
-    <section class="card fretboard">
-      <div class="fret-info">
-        <span>표준튜닝: E A D G B E (저에서 고)</span>
-        <span style="margin-left:auto;">표시 프렛: 0–18</span>
-      </div>
-      <div id="grid" class="grid" aria-live="polite"></div>
-      <div class="legend">
-        <div class="dot best"></div><span>가장 근접 포지션</span>
-        <div class="dot active" style="margin-left:14px;"></div><span>해당 음 포지션</span>
-      </div>
-    </section>
+    function autoCorrelate(buf, sampleRate) {
+      // 기본 피치 검출 (자동상관법)
+      const SIZE = buf.length;
+      const rms = Math.sqrt(buf.reduce((a,b)=>a+b*b,0)/SIZE);
+      if (rms < 0.0008) return -1; // 노이즈 게이트 (사용자가 0.0008로 세팅)
 
-    <footer style="opacity:.8; color:var(--muted); font-size:12px; text-align:center; padding:6px;">웹 오디오 API·자동상관법 기반 피치 검출. 입력장치 선택으로 오인페 사용 가능.</footer>
-  </div>
+      let r1=0, r2=SIZE-1, thres=0.2;
+      for (let i=0; i<SIZE/2; i++) {
+        if (Math.abs(buf[i])<thres) { r1=i; break; }
+      }
+      for (let i=1; i<SIZE/2; i++) {
+        if (Math.abs(buf[SIZE-i])<thres) { r2=SIZE-i; break; }
+      }
+      buf = buf.slice(r1, r2);
+      const newSize = buf.length;
 
-<script>
-// ====== 음계/지판 유틸 ======
-const A4 = 440; // 기준음
-const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-function freqToMidi(f){ return Math.round(69 + 12*Math.log2(f/ A4)); }
-function midiToFreq(m){ return A4 * Math.pow(2, (m-69)/12); }
-function midiToName(m){ const n = ((m%12)+12)%12; const o = Math.floor(m/12)-1; return NOTE_NAMES[n] + o; }
-function centDiff(freq, midi){ return Math.round(1200 * Math.log2(freq / midiToFreq(midi))); }
+      const c = new Array(newSize).fill(0);
+      for (let i=0; i<newSize; i++)
+        for (let j=0; j<newSize-i; j++)
+          c[i] = c[i] + buf[j]*buf[j+i];
 
-// 표준튜닝(저6string -> 고1string), MIDI 값
-// E2(40), A2(45), D3(50), G3(55), B3(59), E4(64)
-const OPEN_MIDI = [40,45,50,55,59,64];
-const STR_LABEL = ["E2","A2","D3","G3","B3","E4"]; // 표시용
-const MAX_FRET = 18;
+      let d=0; while (c[d]>c[d+1]) d++;
+      let maxval=-1, maxpos=-1;
+      for (let i=d; i<newSize; i++) {
+        if (c[i]>maxval) { maxval=c[i]; maxpos=i; }
+      }
+      let T0 = maxpos;
 
-// 미리 모든 포지션의 MIDI와 이름을 계산
-const POSITIONS = []; // {string:0~5, fret:0~MAX_FRET, midi, name}
-for(let s=0; s<6; s++){
-  for(let f=0; f<=MAX_FRET; f++){
-    const midi = OPEN_MIDI[s] + f;
-    POSITIONS.push({string:s, fret:f, midi, name: midiToName(midi)});
-  }
-}
-
-// ====== UI 구성: 지판 그리드 ======
-const grid = document.getElementById('grid');
-function buildGrid(){
-  grid.innerHTML = '';
-  // 헤더 열: 빈칸 + 프렛 번호
-  const head = document.createElement('div');
-  head.className = 'cell muted'; head.textContent = '';
-  grid.appendChild(head);
-  for(let f=0; f<=MAX_FRET; f++){
-    const c = document.createElement('div'); c.className='cell muted'; c.textContent=(f===0? '개방현':f);
-    grid.appendChild(c);
-  }
-  // 각 줄
-  for(let s=0; s<6; s++){
-    const label = document.createElement('div'); label.className='cell string'; label.textContent = STR_LABEL[s];
-    grid.appendChild(label);
-    for(let f=0; f<=MAX_FRET; f++){
-      const cell = document.createElement('div');
-      cell.className = 'cell fret';
-      cell.dataset.string = s;
-      cell.dataset.fret = f;
-      cell.dataset.midi = OPEN_MIDI[s] + f;
-      const tag = document.createElement('div'); tag.className='note-tag'; tag.textContent = midiToName(OPEN_MIDI[s] + f);
-      const fn = document.createElement('div'); fn.className='fret-num'; fn.textContent = f;
-      cell.appendChild(tag); cell.appendChild(fn);
-      grid.appendChild(cell);
+      return sampleRate/T0;
     }
-  }
-}
-buildGrid();
 
-// ====== 오디오/피치 검출 ======
-let audioCtx, analyser, source, mediaStream;
-const FFT_SIZE = 2048;
-const buf = new Float32Array(FFT_SIZE);
-
-// 간단 RMS로 입력레벨 확인
-function rmsLevel(timeData){
-  let sum=0; for(let i=0;i<timeData.length;i++){ const v=timeData[i]; sum += v*v; }
-  return Math.sqrt(sum / timeData.length);
-}
-
-// 자동상관법 기반 근사 피치 검출
-function detectPitch(timeData, sampleRate){
-  // 1) 정규화 & DC 제거 간단히
-  let mean=0; for(let i=0;i<timeData.length;i++) mean+=timeData[i]; mean/=timeData.length;
-  const data = new Float32Array(timeData.length);
-  let max=0; for(let i=0;i<timeData.length;i++){ const v=timeData[i]-mean; data[i]=v; const av=Math.abs(v); if(av>max) max=av; }
-  if(max<1e-7) return null;
-  for(let i=0;i<data.length;i++) data[i]/=max;
-
-  // 2) 오토코릴레이션
-  const SIZE = data.length;
-  const ac = new Float32Array(SIZE);
-  for(let lag=0; lag<SIZE; lag++){
-    let sum=0;
-    for(let i=0; i<SIZE-lag; i++) sum += data[i]*data[i+lag];
-    ac[lag]=sum;
-  }
-  // 3) 첫 번째 큰 피크 찾기
-  let peakIndex=-1; let peakVal=0; let rms = rmsLevel(timeData);
-  const NOISE_GATE = 0.0008; // 입력이 너무 작으면 무시
-  if(rms < NOISE_GATE) return null;
-
-  // 랙=0 이후, 감소 후 다시 증가하는 지점부터 탐색
-  let d=0; while(d<SIZE-1 && ac[d]>=ac[d+1]) d++;
-  let maxPos=d, maxVal=ac[d];
-  for(let i=d+1;i<SIZE;i++){
-    if(ac[i]>maxVal){ maxVal=ac[i]; maxPos=i; }
-  }
-  peakIndex = maxPos; peakVal = maxVal;
-  if(peakIndex<=0) return null;
-
-  // 4) 파라볼라 보간으로 정밀화
-  const i = peakIndex;
-  const x0 = i>0? ac[i-1]: ac[i];
-  const x1 = ac[i];
-  const x2 = i+1<SIZE? ac[i+1]: ac[i];
-  const denom = (x0 - 2*x1 + x2);
-  let shift = 0;
-  if(Math.abs(denom)>1e-7) shift = 0.5*(x0 - x2)/denom;
-  const refined = Math.max(1, i + shift);
-  const freq = sampleRate / refined;
-
-  if(freq<50 || freq>1500) return null; // 기타 범위 외 거르기
-  return { freq, rms };
-}
-
-// 단순 가중 이동평균으로 안정화
-const smoothQ = [];
-function smoothFreq(f){
-  smoothQ.push(f);
-  if(smoothQ.length>6) smoothQ.shift();
-  return smoothQ.reduce((a,b)=>a+b,0)/smoothQ.length;
-}
-
-// 현재 음에 대응하는 지판 위치 하이라이트
-let lastMIDINote=null;
-function highlightPositions(targetMidi, detectedFreq){
-  const cells = grid.querySelectorAll('.cell.fret');
-  cells.forEach(c=>c.classList.remove('active','best'));
-  const matches = POSITIONS.filter(p=>p.midi===targetMidi);
-  matches.forEach(p=>{
-    const cell = grid.querySelector(`.cell.fret[data-string="${p.string}"][data-fret="${p.fret}"]`);
-    if(cell) cell.classList.add('active');
-  });
-  // 최적 포지션: (1) 프렛이 낮고 (2) 현 진동수에 가장 가까운, 경험적 선택
-  // 여기서는 단순히 가장 낮은 프렛을 우선
-  let best = matches.reduce((acc, cur)=>{
-    if(!acc) return cur;
-    if(cur.fret < acc.fret) return cur;
-    return acc;
-  }, null);
-  if(best){
-    const bestCell = grid.querySelector(`.cell.fret[data-string="${best.string}"][data-fret="${best.fret}"]`);
-    if(bestCell) bestCell.classList.add('best');
-    document.getElementById('bestPos').textContent = `${['6','5','4','3','2','1'][best.string]}번 현 · ${best.fret}프렛`;
-  } else {
-    document.getElementById('bestPos').textContent = '—';
-  }
-}
-
-// UI 요소
-const freqEl = document.getElementById('freq');
-const noteEl = document.getElementById('note');
-const centsEl = document.getElementById('cents');
-const rmsFill = document.getElementById('rmsFill');
-const overlay = document.getElementById('overlay');
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
-const deviceSelect = document.getElementById('deviceSelect');
-
-async function listDevices(){
-  try{
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const inputs = devices.filter(d=>d.kind==='audioinput');
-    deviceSelect.innerHTML = inputs.map((d,i)=>`<option value="${d.deviceId}">${d.label || `입력장치 ${i+1}`}</option>`).join('');
-    deviceSelect.disabled = inputs.length<=1;
-  }catch(e){ console.error(e); }
-}
-
-async function startCapture(deviceId){
-  if(!navigator.mediaDevices?.getUserMedia){
-    alert('이 브라우저는 오디오 캡처를 지원하지 않습니다. 최신 버전을 사용하세요.');
-    return;
-  }
-  try{
-    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-    if(audioCtx.state==='suspended') await audioCtx.resume();
-
-    // 기존 스트림 정리
-    if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream = null; }
-
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        deviceId: deviceId ? { exact: deviceId } : undefined,
-        channelCount: 1,
-        sampleRate: audioCtx.sampleRate,
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
-      }, video: false
-    });
-
-    await listDevices(); // 권한 후 라벨 노출
-
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = FFT_SIZE;
-    analyser.smoothingTimeConstant = 0.0;
-
-    source = audioCtx.createMediaStreamSource(mediaStream);
-    source.connect(analyser);
-
-    overlay.style.display='none';
-    ticking = true; rafLoop();
-  }catch(err){
-    console.error(err);
-    alert('오디오 캡처 시작에 실패했습니다: '+ err.message);
-  }
-}
-
-function stopCapture(){
-  if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream=null; }
-  if(source){ try{ source.disconnect(); }catch(_e){} source=null; }
-  if(analyser){ analyser.disconnect(); analyser=null; }
-  ticking = false;
-  freqEl.textContent = '—';
-  noteEl.textContent = '—';
-  centsEl.textContent = '—';
-  rmsFill.style.width = '0%';
-}
-
-let ticking=false;
-function rafLoop(){
-  if(!ticking || !analyser) return;
-  analyser.getFloatTimeDomainData(buf);
-  const res = detectPitch(buf, audioCtx.sampleRate);
-  if(res){
-    const smooth = smoothFreq(res.freq);
-    const midi = freqToMidi(smooth);
-    const name = midiToName(midi);
-    const cents = centDiff(smooth, midi);
-    freqEl.textContent = smooth.toFixed(2) + ' Hz';
-    noteEl.textContent = name;
-    const absC = Math.abs(cents);
-    centsEl.textContent = (cents>0? '+':'') + cents + ' cent';
-    centsEl.style.color = absC<6 ? 'var(--good)' : (absC<15? 'var(--warn)':'var(--bad)');
-    rmsFill.style.width = Math.min(100, Math.round(res.rms*300)) + '%';
-
-    if(midi!==lastMIDINote){
-      lastMIDINote = midi;
-      highlightPositions(midi, smooth);
+    function noteFromPitch(freq) {
+      const A4 = 440;
+      return Math.round(12 * (Math.log(freq / A4) / Math.log(2))) + 69;
     }
-  } else {
-    freqEl.textContent = '—';
-    noteEl.textContent = '—';
-    centsEl.textContent = '—';
-    rmsFill.style.width = '0%';
-  }
-  requestAnimationFrame(rafLoop);
-}
 
-// 이벤트
-startBtn.addEventListener('click', async ()=>{
-  await startCapture(deviceSelect.value || undefined);
-});
-stopBtn.addEventListener('click', ()=>{ stopCapture(); overlay.style.display=''; });
+    function updatePitch(analyser, buf, sampleRate) {
+      analyser.getFloatTimeDomainData(buf);
+      const ac = autoCorrelate(buf, sampleRate);
+      if (ac === -1) {
+        noteElem.textContent = "—";
+        return;
+      }
+      const pitch = ac;
+      const note = noteFromPitch(pitch);
+      const noteName = noteStrings[note % 12];
+      noteElem.textContent = noteName;
+    }
 
-deviceSelect.addEventListener('change', ()=>{
-  // 장치 바꾸면 즉시 재시작
-  startCapture(deviceSelect.value);
-});
+    async function start() {
+      startOverlay.style.display = "none";
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
 
-// 초기 장치 목록 프롬프트
-if(navigator.mediaDevices?.getUserMedia){
-  // 일부 브라우저에서 권한 전에는 라벨이 비어있음 — start 후 listDevices 재호출
-  listDevices();
-}
+      const buf = new Float32Array(analyser.fftSize);
 
-</script>
+      function loop() {
+        updatePitch(analyser, buf, audioCtx.sampleRate);
+        requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+    startOverlay.addEventListener("click", start);
+  </script>
 </body>
 </html>
-
