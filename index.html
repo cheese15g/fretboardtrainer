@@ -195,7 +195,7 @@ function detectPitch(timeData, sampleRate){
   }
   // 3) 첫 번째 큰 피크 찾기
   let peakIndex=-1; let peakVal=0; let rms = rmsLevel(timeData);
-  const NOISE_GATE = 0.008; // 입력이 너무 작으면 무시
+  const NOISE_GATE = 0.0008; // 입력이 너무 작으면 무시
   if(rms < NOISE_GATE) return null;
 
   // 랙=0 이후, 감소 후 다시 증가하는 지점부터 탐색
@@ -376,3 +376,4 @@ if(navigator.mediaDevices?.getUserMedia){
 </script>
 </body>
 </html>
+
